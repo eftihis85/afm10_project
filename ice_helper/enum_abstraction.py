@@ -1,4 +1,3 @@
-
 from enum import Enum
 from abc import ABC,abstractmethod
 from typing import Self, Iterable, cast

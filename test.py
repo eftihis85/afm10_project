@@ -1,31 +1,27 @@
-# import sys
-# from pathlib import Path
-# sys.path.append(str(Path(__file__).parent))
 
 from abc import ABC, abstractmethod
 import re
-from enum import Enum
 from datetime import date
-from ice_helper.types import (
-    ICEContractType,
-    ICEOptionUnderlyingType,
-    ICEContractDeliveryTerm,
-    ICEOptionTerm,
-    ICEOptionType,
-    ICEPayoffStyle,
-    ICEOptionExerciseStyle,
-    ICEMonth,
-    ICESeason  
-)
 
 from ice_helper.delivery_period_specific_types import (
-    ICEDeliveryPeriodABC,
+
     ICEDeliveryPeriod_Daily,
     ICEDeliveryPeriod_Month,
     ICEDeliveryPeriod_Quarter,
     ICEDeliveryPeriod_Season,
     ICEDeliveryPeriod_Year,
 )
+
+from ice_helper.types import (
+    ICEContractType,
+    ICEContractDeliveryTerm,
+    ICEOptionTerm,
+    ICEPayoffStyle,
+    ICEOptionExerciseStyle,
+    ICEMonth,
+    ICESeason  
+)
+
 
 
 
@@ -59,7 +55,6 @@ class ICEOptionData:
     def _decode_ice_symbol_option(self, symbol :str)->None:
         
         # TFO FMK0026_OMPE0000038002042426
-        
         pattern = (r'^([A-Z\s]{4})' # contract_code
                     r'([A-Z]{1})'    # contract_type 
                     r'([A-Z]{1})'    # contract_delivery_term 
@@ -96,8 +91,8 @@ class ICEOptionData:
         contract_delivery_month_code = str(match.group(4))
         contract_delivery_day_of_the_month = int(match.group(5))
         contract_delivery_year = int(match.group(6))
-        underscore_char = str(match.group(7))
-        option_contract_block = str(match.group(8))
+        # underscore_char = str(match.group(7))
+        # option_contract_block = str(match.group(8))
         option_term = str(match.group(9))
         option_payoff_style = str(match.group(10))
         option_exercise_style = str(match.group(11))    
@@ -115,6 +110,7 @@ class ICEOptionData:
         self.contract_type = ICEContractType.from_code(contract_type)
         
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
+        
         
         match self.contract_term:
             case ICEContractDeliveryTerm.DAILY:
@@ -138,33 +134,46 @@ class ICEOptionData:
                     raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
                 
                 self.contract_delivery = ICEDeliveryPeriod_Quarter(year = contract_delivery_year,
-                                                                month = contract_delivery_month_calendar_order)
+                                                                quarter=int(contract_delivery_month_calendar_order) )
             case ICEContractDeliveryTerm.SEASON:
+                season = ICESeason.from_code(contract_delivery_month_code)
                 self.contract_delivery = ICEDeliveryPeriod_Season(year = contract_delivery_year,
-                                                                season = contract_delivery_month_code)
+                                                                season = season)
             case ICEContractDeliveryTerm.CALENDAR_YEAR:
-                pass
+                self.contract_delivery = ICEDeliveryPeriod_Year(year = contract_delivery_year)
             case _:
                 raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
             
             
-        
-        self.contract_delivery_month_name = month_map[contract_delivery_month_code]
-        
+            
         self.option_term = ICEOptionTerm.from_code(option_term)
         
         self.option_payoff_style = ICEPayoffStyle.from_code(option_payoff_style)
         
         self.option_exercise_style = ICEOptionExerciseStyle.from_code(option_exercise_style)
+        self.strike_decimals = option_strike_decimals
         
         self.strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
         
         self.exact_expiry_date = date(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
         
+    # With correct decimals
+    def _strike_price_str(self)->str:
+        return f'{self.strike_price:.{self.strike_decimals}f}'
         
-        
-        
-        
+    def __str__(self) -> str:
+        return (f'contract_code: {self.contract_code}\n'
+                f'contract_type: {self.contract_type}\n'
+                f'contract_delivery_term: {self.contract_term}\n'
+                f'contract_delivery: {self.contract_delivery}\n'
+                f'option_term: {self.option_term}\n'
+                f'option_payoff_style: {self.option_payoff_style}\n'
+                f'option_exercise_style: {self.option_exercise_style}\n'
+                f'strike_price: {self._strike_price_str()}\n'
+                f'exact_expiry_date: {self.exact_expiry_date}\n'
+                    )
+    
+    
         
         
         
@@ -176,9 +185,5 @@ class ICEOptionData:
 # --- Test Execution ---
 # TFO FMK0026_OMPE0000038002042426
 raw_string = 'TFO FMM0026_OMPE0000037002052726'
-decoded_data = decode_ice_symbol_option(raw_string)
-
-# Display variables nicely
-for key, value in decoded_data._asdict().items():
-    print(f'{key}: {value}')
-    
+data = ICEOptionData(raw_string)
+print(data)
