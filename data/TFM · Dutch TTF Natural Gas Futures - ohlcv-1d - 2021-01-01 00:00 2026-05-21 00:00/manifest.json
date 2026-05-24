@@ -1,0 +1,32 @@
+{
+    "job_id": "NDEX-20260521-K755M8NLDB",
+    "files": [
+        {
+            "filename": "condition.json",
+            "size": 202147,
+            "hash": "sha256:f7d722fd8b7f3fdf28d466cbe7ebe2759a3bb2dd021c4fbb7a212f6f10a4cf4b",
+            "urls": {
+                "https": "https://api.databento.com/v0/batch/download/9M4PWMUX/NDEX-20260521-K755M8NLDB/condition.json",
+                "ftp": "ftp://ftp.databento.com/9M4PWMUX/NDEX-20260521-K755M8NLDB/condition.json"
+            }
+        },
+        {
+            "filename": "metadata.json",
+            "size": 686,
+            "hash": "sha256:1944b9094a88cbe3f2b25eea0610678f19701426f68cc37336647731b7c73e2e",
+            "urls": {
+                "https": "https://api.databento.com/v0/batch/download/9M4PWMUX/NDEX-20260521-K755M8NLDB/metadata.json",
+                "ftp": "ftp://ftp.databento.com/9M4PWMUX/NDEX-20260521-K755M8NLDB/metadata.json"
+            }
+        },
+        {
+            "filename": "ndex-impact-20210101-20260520.ohlcv-1d.csv",
+            "size": 26848574,
+            "hash": "sha256:577f3673a60fc18e7f6429821a64cba72df3e3a26c1ceab0dc798b5e085e9f73",
+            "urls": {
+                "https": "https://api.databento.com/v0/batch/download/9M4PWMUX/NDEX-20260521-K755M8NLDB/ndex-impact-20210101-20260520.ohlcv-1d.csv",
+                "ftp": "ftp://ftp.databento.com/9M4PWMUX/NDEX-20260521-K755M8NLDB/ndex-impact-20210101-20260520.ohlcv-1d.csv"
+            }
+        }
+    ]
+}

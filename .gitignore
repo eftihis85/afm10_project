@@ -1,0 +1,17 @@
+# Virtual Environments (Crucial: blocks external packages)
+.venv/
+
+# Python Cache & Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# VS Code IDE Settings (Optional: ignore local workspace layouts)
+.vscode/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
