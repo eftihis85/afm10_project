@@ -14,6 +14,13 @@ class ICEDeliveryPeriodABC(ABC):
     def __str__(self) -> str:
         pass
 
+class ICEDeliveryPeriod_NotSet(ICEDeliveryPeriodABC):
+    def __init__(self):
+        pass
+            
+    def __str__(self) -> str:
+        return 'Not set!'
+        
 class ICEDeliveryPeriod_Daily(ICEDeliveryPeriodABC):
     def __init__(self, date: date):
         self.date = date
@@ -31,8 +38,19 @@ class ICEDeliveryPeriod_Month(ICEDeliveryPeriodABC):
     
 class ICEDeliveryPeriod_Quarter(ICEDeliveryPeriodABC):
     def __init__(self, quarter: int, year: int):
-        self.quarter = quarter
+        self._quarter = quarter
         self.year = year
+
+    @property
+    def quarter(self) -> int:
+        return self._quarter
+
+    @quarter.setter
+    def quarter(self, value: int):
+        if value not in [1, 2, 3, 4]:
+            raise ValueError('Quarter must be between 1 and 4')
+        self._quarter = value
+
 
     def __str__(self) -> str:
         return f'{self.year}-Q{self.quarter}'
@@ -52,8 +70,11 @@ class ICEDeliveryPeriod_Year(ICEDeliveryPeriodABC):
     def __str__(self) -> str:
         return f'{self.year}'
     
-ICEDeliveryPeriod = Union[ICEDeliveryPeriod_Daily, 
-                          ICEDeliveryPeriod_Month,
-                          ICEDeliveryPeriod_Quarter,
-                          ICEDeliveryPeriod_Season,
-                          ICEDeliveryPeriod_Year ]
+ICEDeliveryPeriod = Union[
+                            ICEDeliveryPeriod_NotSet,   
+                            ICEDeliveryPeriod_Daily, 
+                            ICEDeliveryPeriod_Month,
+                            ICEDeliveryPeriod_Quarter,
+                            ICEDeliveryPeriod_Season,
+                            ICEDeliveryPeriod_Year 
+                        ]

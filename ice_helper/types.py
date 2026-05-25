@@ -6,7 +6,6 @@ from ice_helper.enum_abstraction import ICECodeEnum, FromCode
 
 __all__ = [
     "ICEContractType",
-    # "ICEOptionUnderlyingType",
     "ICEContractDeliveryTerm",
     "ICEOptionTerm",
     "ICEPayoffStyle",
@@ -31,20 +30,6 @@ class ICEContractType(FromCode, ICECodeEnum):
     IRS_FUTURES = ('R', 'IRS - Futures')
     CDS_FUTURES = ('B', 'CDS - Futures')
 
-# class ICEOptionUnderlyingType(FromCode, ICECodeEnum):
-#     def __init__(self, code: str, description: str) -> None:
-#         self.code = code
-#         self.description = description
-
-#     FUTURES = ('F', 'Futures')
-#     OTC_SWAP_FLOW = ('S', 'OTC Swap– Flow')
-#     OTC_SWAP_LOTS = ('L', 'OTC Swap – Lots')
-#     LARGE_SIZED_FLOW = ('J', 'Large Sized Flow')
-#     OTC_PHYSICAL_FORWARDS = ('P', 'OTC Physical Forwards')
-#     INDEX = ('I', 'Index')
-#     COMMON_STOCK = ('E', 'Common Stock')
-#     IRS_FUTURES = ('R', 'IRS - Futures')
-#     CDS_FUTURES = ('B', 'CDS - Futures')
 
 class ICEContractDeliveryTerm(FromCode, ICECodeEnum):
     def __init__(self, code: str, description: str):

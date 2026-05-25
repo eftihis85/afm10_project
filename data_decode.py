@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import re
 from datetime import date
 
+from ice_helper.datetime_misc import ICE_ts_event_to_dt
 from ice_helper.delivery_period_specific_types import (
 
     ICEDeliveryPeriod_Daily,
@@ -10,6 +11,8 @@ from ice_helper.delivery_period_specific_types import (
     ICEDeliveryPeriod_Quarter,
     ICEDeliveryPeriod_Season,
     ICEDeliveryPeriod_Year,
+    ICEDeliveryPeriod,
+    ICEDeliveryPeriod_NotSet
 )
 
 from ice_helper.types import (
@@ -21,10 +24,6 @@ from ice_helper.types import (
     ICEMonth,
     ICESeason  
 )
-
-
-
-
 
 class OptionSymbolDecodeException(Exception, ABC):
     def __init__(self, symbol: str)-> None:
@@ -47,8 +46,17 @@ class OptionSymbolDecodeException_NoMatch(OptionSymbolDecodeException):
         return 'No match found for option symbol: {symbol}'
 
 class ICEOptionData:
-    def __init__(self, symbol: str):
-        self.symbol = symbol
+    def __init__(self, row: dict[str, str]):
+        ts_event_dt = ICE_ts_event_to_dt(row.get('ts_event'))
+        rtype = row.get('rtype')
+        publisher_id = row.get('publisher_id')
+        instrument_id = row.get('instrument_id')
+        open_price = row.get('open')
+        high_price = row.get('high')
+        low_price = row.get('low')
+        close_price = row.get('close')
+        volume = row.get('volume')
+        symbol:str = row.get('symbol')
         self._decode_ice_symbol_option(symbol)
         
     
@@ -103,14 +111,10 @@ class ICEOptionData:
         option_expiry_short_year = int(match.group(16))
         option_expiry_year = option_expiry_short_year+2000
         
-        
-        
         self.contract_code = contract_code
-        
         self.contract_type = ICEContractType.from_code(contract_type)
-        
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        
+        self.contract_delivery:ICEDeliveryPeriod = ICEDeliveryPeriod_NotSet()
         
         match self.contract_term:
             case ICEContractDeliveryTerm.DAILY:
@@ -128,7 +132,8 @@ class ICEOptionData:
                 
             case ICEContractDeliveryTerm.QUARTER:
                 calendar_order = ICEMonth.from_code(contract_delivery_month_code).calendar_order
-                contract_delivery_month_calendar_order = ((calendar_order +2) /3) 
+                x = calendar_order +2
+                contract_delivery_month_calendar_order:float = x /3 
                 
                 if contract_delivery_month_calendar_order not in [1, 2, 3, 4]:
                     raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
@@ -147,14 +152,10 @@ class ICEOptionData:
             
             
         self.option_term = ICEOptionTerm.from_code(option_term)
-        
         self.option_payoff_style = ICEPayoffStyle.from_code(option_payoff_style)
-        
         self.option_exercise_style = ICEOptionExerciseStyle.from_code(option_exercise_style)
         self.strike_decimals = option_strike_decimals
-        
         self.strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
-        
         self.exact_expiry_date = date(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
         
     # With correct decimals
@@ -162,16 +163,17 @@ class ICEOptionData:
         return f'{self.strike_price:.{self.strike_decimals}f}'
         
     def __str__(self) -> str:
-        return (f'contract_code: {self.contract_code}\n'
-                f'contract_type: {self.contract_type}\n'
-                f'contract_delivery_term: {self.contract_term}\n'
-                f'contract_delivery: {self.contract_delivery}\n'
-                f'option_term: {self.option_term}\n'
-                f'option_payoff_style: {self.option_payoff_style}\n'
-                f'option_exercise_style: {self.option_exercise_style}\n'
-                f'strike_price: {self._strike_price_str()}\n'
-                f'exact_expiry_date: {self.exact_expiry_date}\n'
-                    )
+        return (
+                    f'contract_code: {self.contract_code}\n'
+                    f'contract_type: {self.contract_type}\n'
+                    f'contract_delivery_term: {self.contract_term}\n'
+                    f'contract_delivery: {self.contract_delivery}\n'
+                    f'option_term: {self.option_term}\n'
+                    f'option_payoff_style: {self.option_payoff_style}\n'
+                    f'option_exercise_style: {self.option_exercise_style}\n'
+                    f'strike_price: {self._strike_price_str()}\n'
+                    f'exact_expiry_date: {self.exact_expiry_date}\n'
+                )
     
     
         
