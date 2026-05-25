@@ -5,19 +5,30 @@ import sqlite3
 import json
 from pathlib import Path
 from typing import Final
-from ice_helper.datetime_misc import ICE_ts_event_to_dt
+from data_decode import ICEOptionData
+
 
 __DATA_FOLDER:Final = 'data'
 __OPTIONS_FILE_NAME = 'TFO · Dutch TTF Natural Gas Options - ohlcv-1d - 2026-04-20 00:00 2026-05-20 16:00.csv'
 __OPTIONS_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __OPTIONS_FILE_NAME 
 
 
-def read_csv(csv_file_path: Path):
+def parse_option_csv(csv_file_path: Path):
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
-
+        
+        
+        fieldnames: list[str] = list(reader.fieldnames) if reader.fieldnames is not None else []
+        fieldname_check= set(fieldnames).difference({'ts_event', 'rtype', 'publisher_id', 'instrument_id', 'open', 'high', 'low', 'close', 'volume', 'symbol'})
+        if len(fieldnames) == 0 or len(fieldname_check) != 0:
+            raise RuntimeError('Invalid fieldnames in the csv file')
+        
         for row in reader:
-
+            try:
+                print(ICEOptionData(row))
+            except Exception or Error as e:  
+                print(row)
+                
             # ts_event_dt = ICE_ts_event_to_dt(row.get('ts_event'))
             # rtype = row.get('rtype')
             # publisher_id = row.get('publisher_id')
@@ -41,7 +52,7 @@ row = {'ts_event': '2026-04-20T00:00:00.000000000Z',
 
 
 
-read_csv(csv_file_path=__OPTIONS_FILE_PATH)
+parse_option_csv(csv_file_path=__OPTIONS_FILE_PATH)
 
 
 # def process_csv_and_store(csv_file_path: str, db_file_path: str):

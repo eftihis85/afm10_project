@@ -47,17 +47,21 @@ class OptionSymbolDecodeException_NoMatch(OptionSymbolDecodeException):
 
 class ICEOptionData:
     def __init__(self, row: dict[str, str]):
-        ts_event_dt = ICE_ts_event_to_dt(row.get('ts_event'))
-        rtype = row.get('rtype')
-        publisher_id = row.get('publisher_id')
-        instrument_id = row.get('instrument_id')
-        open_price = row.get('open')
-        high_price = row.get('high')
-        low_price = row.get('low')
-        close_price = row.get('close')
-        volume = row.get('volume')
-        symbol:str = row.get('symbol')
-        self._decode_ice_symbol_option(symbol)
+        self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
+        self.rtype = row.get('rtype')
+        self.publisher_id = row.get('publisher_id')
+        self.instrument_id = row.get('instrument_id')
+        self.open_price = row.get('open')
+        self.high_price = row.get('high')
+        self.low_price = row.get('low')
+        self.close_price = row.get('close')
+        self.volume = row.get('volume') 
+        self.symbol = row.get('symbol')
+        
+        if not self.symbol:
+            raise ValueError('symbol is None')
+        
+        self._decode_ice_symbol_option(symbol=self.symbol)
         
     
     def _decode_ice_symbol_option(self, symbol :str)->None:
@@ -163,7 +167,8 @@ class ICEOptionData:
         return f'{self.strike_price:.{self.strike_decimals}f}'
         
     def __str__(self) -> str:
-        return (
+        return (    
+                    f'symbol: {self.symbol}\n'
                     f'contract_code: {self.contract_code}\n'
                     f'contract_type: {self.contract_type}\n'
                     f'contract_delivery_term: {self.contract_term}\n'
@@ -173,6 +178,15 @@ class ICEOptionData:
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
                     f'exact_expiry_date: {self.exact_expiry_date}\n'
+                    f'ts_event: {self.ts_event}\n'
+                    f'rtype: {self.rtype}\n'
+                    f'publisher_id: {self.publisher_id}\n'
+                    f'instrument_id: {self.instrument_id}\n'
+                    f'open_price: {self.open_price}\n'
+                    f'high_price: {self.high_price}\n'
+                    f'low_price: {self.low_price}\n'
+                    f'close_price: {self.close_price}\n'
+                    f'volume: {self.volume}\n'
                 )
     
     
