@@ -4,16 +4,7 @@ import re
 from datetime import date
 
 from ice_helper.datetime_misc import ICE_ts_event_to_dt
-from ice_helper.delivery_period_specific_types import (
 
-    ICEDeliveryPeriod_Daily,
-    ICEDeliveryPeriod_Month,
-    ICEDeliveryPeriod_Quarter,
-    ICEDeliveryPeriod_Season,
-    ICEDeliveryPeriod_Year,
-    ICEDeliveryPeriod,
-    ICEDeliveryPeriod_NotSet
-)
 
 from ice_helper.types import (
     ICEContractType,
@@ -21,8 +12,6 @@ from ice_helper.types import (
     ICEOptionTerm,
     ICEPayoffStyle,
     ICEOptionExerciseStyle,
-    ICEMonth,
-    ICESeason  
 )
 
 class OptionSymbolDecodeException(Exception, ABC):
@@ -45,7 +34,9 @@ class OptionSymbolDecodeException_NoMatch(OptionSymbolDecodeException):
     def message(self) -> str:
         return 'No match found for option symbol: {symbol}'
 
-class ICEOptionData:
+
+
+class ICEOptionsData:
     def __init__(self, row: dict[str, str]):
         self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
         self.rtype = row.get('rtype')
@@ -61,13 +52,14 @@ class ICEOptionData:
         if not self.symbol:
             raise ValueError('symbol is None')
         
-        self._decode_ice_symbol_option(symbol=self.symbol)
+        self._decode_ice_symbol(symbol=self.symbol)
         
     
-    def _decode_ice_symbol_option(self, symbol :str)->None:
+    def _decode_ice_symbol(self, symbol :str)->None:
         
         # TFO FMK0026_OMPE0000038002042426
-        pattern = (r'^([A-Z\s]{4})' # contract_code
+        pattern = (r'^'
+                    r'([A-Z\s]{4})'  # contract_code
                     r'([A-Z]{1})'    # contract_type 
                     r'([A-Z]{1})'    # contract_delivery_term 
                     r'([A-Z])'       # contract_delivery_month_code
@@ -85,7 +77,8 @@ class ICEOptionData:
                     r'(\d{1})'       # option_strike_decimals
                     r'(\d{2})'       # option_expiry_month
                     r'(\d{2})'       # option_expiry_day
-                    r'(\d{2})$'      # option_expiry_short_year
+                    r'(\d{2})'       # option_expiry_short_year
+                    r'$'      
                     )
         
         match = re.match(pattern, symbol)
@@ -118,41 +111,9 @@ class ICEOptionData:
         self.contract_code = contract_code
         self.contract_type = ICEContractType.from_code(contract_type)
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        self.contract_delivery:ICEDeliveryPeriod = ICEDeliveryPeriod_NotSet()
-        
-        match self.contract_term:
-            case ICEContractDeliveryTerm.DAILY:
-                contract_delivery_month_calendar_order = ICEMonth.from_code(contract_delivery_month_code).calendar_order
-                self.contract_delivery = ICEDeliveryPeriod_Daily(
-                                                                    date=date(day=contract_delivery_day_of_the_month, 
-                                                                              month=contract_delivery_month_calendar_order, 
-                                                                              year=contract_delivery_year
-                                                                              )
-                )
-            case ICEContractDeliveryTerm.MONTH:
-                contract_delivery_month_calendar_order = ICEMonth.from_code(contract_delivery_month_code).calendar_order
-                self.contract_delivery = ICEDeliveryPeriod_Month(year = contract_delivery_year,
-                                                                month = contract_delivery_month_calendar_order)
-                
-            case ICEContractDeliveryTerm.QUARTER:
-                calendar_order = ICEMonth.from_code(contract_delivery_month_code).calendar_order
-                x = calendar_order +2
-                contract_delivery_month_calendar_order:float = x /3 
-                
-                if contract_delivery_month_calendar_order not in [1, 2, 3, 4]:
-                    raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
-                
-                self.contract_delivery = ICEDeliveryPeriod_Quarter(year = contract_delivery_year,
-                                                                quarter=int(contract_delivery_month_calendar_order) )
-            case ICEContractDeliveryTerm.SEASON:
-                season = ICESeason.from_code(contract_delivery_month_code)
-                self.contract_delivery = ICEDeliveryPeriod_Season(year = contract_delivery_year,
-                                                                season = season)
-            case ICEContractDeliveryTerm.CALENDAR_YEAR:
-                self.contract_delivery = ICEDeliveryPeriod_Year(year = contract_delivery_year)
-            case _:
-                raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
-            
+        self.contract_delivery_period:ICEDeliveryPeriod = self.contract_term.get_ice_delivery_period(contract_delivery_month_code, 
+                                                                                                contract_delivery_day_of_the_month, 
+                                                                                                contract_delivery_year) 
             
             
         self.option_term = ICEOptionTerm.from_code(option_term)
@@ -172,7 +133,7 @@ class ICEOptionData:
                     f'contract_code: {self.contract_code}\n'
                     f'contract_type: {self.contract_type}\n'
                     f'contract_delivery_term: {self.contract_term}\n'
-                    f'contract_delivery: {self.contract_delivery}\n'
+                    f'contract_delivery: {self.contract_delivery_period}\n'
                     f'option_term: {self.option_term}\n'
                     f'option_payoff_style: {self.option_payoff_style}\n'
                     f'option_exercise_style: {self.option_exercise_style}\n'
@@ -198,8 +159,4 @@ class ICEOptionData:
 
 
 
-# --- Test Execution ---
-# TFO FMK0026_OMPE0000038002042426
-raw_string = 'TFO FMM0026_OMPE0000037002052726'
-data = ICEOptionData(raw_string)
-print(data)
+

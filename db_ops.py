@@ -5,7 +5,8 @@ import sqlite3
 import json
 from pathlib import Path
 from typing import Final
-from data_decode import ICEOptionData
+import re
+from data_decode import ICEOptionsData
 
 
 __DATA_FOLDER:Final = 'data'
@@ -24,35 +25,27 @@ def parse_option_csv(csv_file_path: Path):
             raise RuntimeError('Invalid fieldnames in the csv file')
         
         for row in reader:
-            try:
-                print(ICEOptionData(row))
-            except Exception or Error as e:  
-                print(row)
-                
-            # ts_event_dt = ICE_ts_event_to_dt(row.get('ts_event'))
-            # rtype = row.get('rtype')
-            # publisher_id = row.get('publisher_id')
-            # instrument_id = row.get('instrument_id')
-            # open_price = row.get('open')
-            # high_price = row.get('high')
-            # low_price = row.get('low')
-            # close_price = row.get('close')
-            # volume = row.get('volume')
-            # symbol = row.get('symbol')
             
-            print(row)
+            pattern = r'([A-Z\s]{5})([\d\s]{4})([\d]{8})'
+            
+            symbol = row['symbol']
+            match = re.match(pattern=pattern, string= symbol) # 'TFO  22  31131494'
+            
+            
+            if match:
+                continue
+            
+            try:
+                a = ICEOptionsData(row)
+            except:  
+                print(symbol)
+                
 
-row = {'ts_event': '2026-04-20T00:00:00.000000000Z', 
-       'rtype': '35', 
-       'publisher_id': '85', 
-       'instrument_id': '31131494', 
-       'open': '3.700000000', 'high': '3.700000000', 'low': '3.700000000', 'close': '3.700000000', 
-       'volume': '250', 
-       'symbol': 'TFO  22  31131494'}
 
-
-
+# a = ICEOptionData(row={'ts_event': '2026-04-20T00:00:00.000000000Z', 'rtype': '35', 'publisher_id': '58', 'instrument_id': '108245410', 'open': '2.880000000', 'high': '2.880000000', 'low': '2.880000000', 'close': '2.880000000', 'volume': '1000', 'symbol': 'TFO FMM0026_OMPE0000037002052726'})
+# print( a)
 parse_option_csv(csv_file_path=__OPTIONS_FILE_PATH)
+
 
 
 # def process_csv_and_store(csv_file_path: str, db_file_path: str):
