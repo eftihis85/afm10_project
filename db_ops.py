@@ -7,14 +7,17 @@ from pathlib import Path
 from typing import Final
 import re
 from data_decode import ICEOptionsData
+from futures_data_decode import ICEFuturesData, ICEFuturesData_Month
 
 
 __DATA_FOLDER:Final = 'data'
 __OPTIONS_FILE_NAME = 'TFO · Dutch TTF Natural Gas Options - ohlcv-1d - 2026-04-20 00:00 2026-05-20 16:00.csv'
+__FUTURES_FILE_NAME = 'TFM · Dutch TTF Natural Gas Futures - ohlcv-1d - 2021-01-01 00:00 2026-05-21 00:00.csv'
 __OPTIONS_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __OPTIONS_FILE_NAME 
+__FUTURES_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __FUTURES_FILE_NAME 
 
 
-def parse_option_csv(csv_file_path: Path):
+def parse_options_csv(csv_file_path: Path):
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         
@@ -33,20 +36,48 @@ def parse_option_csv(csv_file_path: Path):
             
             
             if match:
-                continue
+                print(symbol)
             
             try:
-                a = ICEOptionsData(row)
+                a = ICEFData(row)
             except:  
-                print(symbol)
                 
+                pass # print(symbol)
+                
+# parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
 
 
-# a = ICEOptionData(row={'ts_event': '2026-04-20T00:00:00.000000000Z', 'rtype': '35', 'publisher_id': '58', 'instrument_id': '108245410', 'open': '2.880000000', 'high': '2.880000000', 'low': '2.880000000', 'close': '2.880000000', 'volume': '1000', 'symbol': 'TFO FMM0026_OMPE0000037002052726'})
-# print( a)
-parse_option_csv(csv_file_path=__OPTIONS_FILE_PATH)
+def parse_futures_csv(csv_file_path: Path):
+    with open(csv_file_path, mode='r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        
+        
+        fieldnames: list[str] = list(reader.fieldnames) if reader.fieldnames is not None else []
+        fieldname_check= set(fieldnames).difference({'ts_event', 'rtype', 'publisher_id', 'instrument_id', 'open', 'high', 'low', 'close', 'volume', 'symbol'})
+        if len(fieldnames) == 0 or len(fieldname_check) != 0:
+            raise RuntimeError('Invalid fieldnames in the csv file')
+        
+        for row in reader:
+            
+            pattern = r'([A-Z\s]{5})([\d\s]{4})([\d]{8})'
+            
+            symbol = row['symbol']
+            match = re.match(pattern=pattern, string= symbol) # 'TFO  22  31131494'
+            
+            if match:
+                print(symbol)
+            
+            try:
+                a = ICEFuturesData.decode_csv_row(row)
+                
+                if not isinstance(a, ICEFuturesData_Month):
+                    print(a.symbol)
+            except:  
+                
+                print('ERROR' + symbol)
 
 
+parse_futures_csv(csv_file_path=__FUTURES_FILE_PATH)
 
 # def process_csv_and_store(csv_file_path: str, db_file_path: str):
 #     # Connect to the SQLite database (this creates the file if it doesn't exist)
