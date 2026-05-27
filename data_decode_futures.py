@@ -108,15 +108,67 @@ class ICEFuturesData_Month(ICEFuturesData):
         self.contract_delivery_period:ICEDeliveryPeriod = self.contract_delivery_term.get_ice_delivery_period(contract_delivery_month_code, 
                                                                                                 contract_delivery_day_of_the_month, 
                                                                                                 contract_delivery_year) 
-            
-        
         
         super().__init__(row)
         
-    
+    def __str__(self) -> str:
+        return (f'contract_code: {self.contract_code}\n'
+                f'contract_type: {self.contract_type}\n'
+                f'contract_delivery_term: {self.contract_delivery_term}\n'
+                f'contract_delivery: {self.contract_delivery_period}\n'
+                + super().__str__())
+
+class ICEFuturesData_QSY(ICEFuturesData):
+    def __init__(self, row: dict[str, str]):
+        # up to here is ensured that 'symbol' is not null
+        symbol:str =  row.get('symbol') or ''
+        
+        pattern =  (
+                r'^'
+                r'([A-Z\s]{4})'  # contract_code
+                r'([A-Z]{1})'    # contract_type 
+                r'([QSY])'       # contract_delivery_term 
+                r'([A-Z])'       # contract_delivery_month_code_from
+                r'(\d{2})'       # contract_delivery_day_of_the_month_from
+                r'(\d{2})'       # contract_delivery_year_from
+                r'([\.])'        # dot
+                r'([A-Z])'       # contract_delivery_month_code_to
+                r'(\d{2})'       # contract_delivery_day_of_the_month_to
+                r'(\d{2})'       # contract_delivery_year_to
+                r'$'        
+            )
+        
+        match = re.match(pattern, symbol)
+        
+        if not match:
+            raise ValueError('symbol does not match pattern')
+        
+        self.contract_code = str(match.group(1)).strip()
+        self.contract_type = ICEContractType.from_code(str(match.group(2)))
+        self.contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(3)))
+        
+        contract_delivery_month_code_from = str(match.group(4))
+        contract_delivery_day_of_the_month_from = int(match.group(5))
+        contract_delivery_year_from = int(match.group(6))
+        
+        contract_delivery_month_code_to = str(match.group(8))
+        contract_delivery_day_of_the_month_to = int(match.group(9))
+        contract_delivery_year_to = int(match.group(10))
+        
+        
+        # standart season or non standart
+        self.contract_delivery_period:ICEDeliveryPeriod = self.contract_delivery_term.get_ice_delivery_period(contract_delivery_month_code_from, 
+                                                                                                contract_delivery_day_of_the_month_from, 
+                                                                                                contract_delivery_year_from) 
+        
+        super().__init__(row)
         
     def __str__(self) -> str:
-        return super().__str__()
+        return (f'contract_code: {self.contract_code}\n'
+                f'contract_type: {self.contract_type}\n'
+                f'contract_delivery_term: {self.contract_delivery_term}\n'
+                f'contract_delivery: {self.contract_delivery_period}\n'
+                + super().__str__())
     
 
 
