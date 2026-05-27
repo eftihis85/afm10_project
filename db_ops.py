@@ -17,32 +17,32 @@ __OPTIONS_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __
 __FUTURES_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __FUTURES_FILE_NAME 
 
 
-def parse_options_csv(csv_file_path: Path):
-    with open(csv_file_path, mode='r', encoding='utf-8') as file:
-        reader = csv.DictReader(file)
+# def parse_options_csv(csv_file_path: Path):
+#     with open(csv_file_path, mode='r', encoding='utf-8') as file:
+#         reader = csv.DictReader(file)
         
         
-        fieldnames: list[str] = list(reader.fieldnames) if reader.fieldnames is not None else []
-        fieldname_check= set(fieldnames).difference({'ts_event', 'rtype', 'publisher_id', 'instrument_id', 'open', 'high', 'low', 'close', 'volume', 'symbol'})
-        if len(fieldnames) == 0 or len(fieldname_check) != 0:
-            raise RuntimeError('Invalid fieldnames in the csv file')
+#         fieldnames: list[str] = list(reader.fieldnames) if reader.fieldnames is not None else []
+#         fieldname_check= set(fieldnames).difference({'ts_event', 'rtype', 'publisher_id', 'instrument_id', 'open', 'high', 'low', 'close', 'volume', 'symbol'})
+#         if len(fieldnames) == 0 or len(fieldname_check) != 0:
+#             raise RuntimeError('Invalid fieldnames in the csv file')
         
-        for row in reader:
+#         for row in reader:
             
-            pattern = r'([A-Z\s]{5})([\d\s]{4})([\d]{8})'
+#             pattern = r'([A-Z\s]{5})([\d\s]{4})([\d]{8})'
             
-            symbol = row['symbol']
-            match = re.match(pattern=pattern, string= symbol) # 'TFO  22  31131494'
+#             symbol = row['symbol']
+#             match = re.match(pattern=pattern, string= symbol) # 'TFO  22  31131494'
             
             
-            if match:
-                print(symbol)
+#             if match:
+#                 print(symbol)
             
-            try:
-                a = ICEFData(row)
-            except:  
+#             try:
+#                 a = ICEFData(row)
+#             except:  
                 
-                pass # print(symbol)
+#                 pass # print(symbol)
                 
 # parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
 
@@ -70,11 +70,11 @@ def parse_futures_csv(csv_file_path: Path):
             try:
                 a = ICEFuturesData.decode_csv_row(row)
                 
-                if not isinstance(a, ICEFuturesData_Month):
-                    print(a.symbol)
-            except:  
+                # if isinstance(a, ICEFuturesData_Month):
+                #     print(a)
+            except ValueError as e:  
                 
-                print('ERROR' + symbol)
+                print('ERROR' + e.__str__() + symbol)
 
 
 parse_futures_csv(csv_file_path=__FUTURES_FILE_PATH)

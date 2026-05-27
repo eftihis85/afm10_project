@@ -14,6 +14,15 @@ from ice_helper.types import (
     ICEOptionExerciseStyle,
 )
 
+from ice_helper.types_period import (                               
+                                        ICEDeliveryPeriod, 
+                                        ICEDeliveryPeriod_Daily, 
+                                        ICEDeliveryPeriod_Month, 
+                                        ICEDeliveryPeriod_Quarter, 
+                                        ICEDeliveryPeriod_Season, 
+                                        ICEDeliveryPeriod_Year
+                                        )
+
 class OptionSymbolDecodeException(Exception, ABC):
     def __init__(self, symbol: str)-> None:
         self.symbol = symbol
@@ -111,7 +120,7 @@ class ICEOptionsData:
         self.contract_code = contract_code
         self.contract_type = ICEContractType.from_code(contract_type)
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        self.contract_delivery_period:ICEDeliveryPeriod = self.contract_term.get_ice_delivery_period(contract_delivery_month_code, 
+        self.contract_delivery_period = ICEDeliveryPeriod.from_values(contract_delivery_month_code, 
                                                                                                 contract_delivery_day_of_the_month, 
                                                                                                 contract_delivery_year) 
             
