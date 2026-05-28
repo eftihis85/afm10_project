@@ -10,18 +10,19 @@ from ice_helper.datetime_misc import ICE_ts_event_to_dt
 from ice_helper.types import (
     ICEContractType,
     ICEContractDeliveryTerm,
+    ICEMonth,
     ICEOptionTerm,
     ICEPayoffStyle,
     ICEOptionExerciseStyle,
 )
 
 from ice_helper.types_period import (                               
-                                        ICEDeliveryPeriod, 
-                                        ICEDeliveryPeriod_Daily, 
                                         ICEDeliveryPeriod_Month, 
-                                        ICEDeliveryPeriod_Quarter, 
-                                        ICEDeliveryPeriod_Season, 
-                                        ICEDeliveryPeriod_Year
+                                        # ICEDeliveryPeriod, 
+                                        # ICEDeliveryPeriod_Daily, 
+                                        # ICEDeliveryPeriod_Quarter, 
+                                        # ICEDeliveryPeriod_Season, 
+                                        # ICEDeliveryPeriod_Year
                                         )
 
 
@@ -41,15 +42,15 @@ class ICEOptionsData(ABC):
                 case 32:
                     # Month
                     return ICEOptionsData_Month(row)
-                case 17:
-                    # QSY
-                    return ICEFuturesData_QSY(row)
-                case 23:
-                    return ICEFuturesData_Spread_Month(row)
-                case 35:
-                    return ICEFuturesData_Spread_QSY(row)
+                # case 17:
+                #     # QSY
+                #     return ICEFuturesData_QSY(row)
+                # case 23:
+                #     return ICEFuturesData_Spread_Month(row)
+                # case 35:
+                #     return ICEFuturesData_Spread_QSY(row)
                 case _:
-                    return ICEFuturesData_Unencoded(row)
+                    return ICEOptionsData_Unencoded(row)
         except:
             return ICEOptionsData_Unencoded(row)
                 
@@ -119,7 +120,7 @@ class ICEOptionsData_Month(ICEOptionsData):
 
         
         if not match:
-            raise OptionSymbolDecodeException_NoMatch(symbol=symbol)
+            raise ValueError('symbol does not match pattern')
             
         # Extract raw string groups from the regex match
         
@@ -127,7 +128,7 @@ class ICEOptionsData_Month(ICEOptionsData):
         contract_type = str(match.group(2))
         contract_delivery_term = str(match.group(3))
         contract_delivery_month_code = str(match.group(4))
-        contract_delivery_day_of_the_month = int(match.group(5))
+        # contract_delivery_day_of_the_month = int(match.group(5))
         contract_delivery_year = int(match.group(6))
         # underscore_char = str(match.group(7))
         # option_contract_block = str(match.group(8))
@@ -144,10 +145,9 @@ class ICEOptionsData_Month(ICEOptionsData):
         self.contract_code = contract_code
         self.contract_type = ICEContractType.from_code(contract_type)
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        self.contract_delivery_period = ICEDeliveryPeriod.from_values(contract_delivery_month_code, 
-                                                                                                contract_delivery_day_of_the_month, 
-                                                                                                contract_delivery_year) 
-            
+        self.contract_delivery_period = ICEDeliveryPeriod_Month(year = contract_delivery_year,
+                                                                month = ICEMonth.from_code(contract_delivery_month_code).calendar_order)
+                                            
             
         self.option_term = ICEOptionTerm.from_code(option_term)
         self.option_payoff_style = ICEPayoffStyle.from_code(option_payoff_style)
@@ -207,5 +207,5 @@ class ICEOptionsData_Unencoded(ICEOptionsData):
 
 ICEOptionsDataUnion = Union[
                             ICEOptionsData_Unencoded, 
-                            ICEOptionsDataA, 
+                            ICEOptionsData_Month, 
                             ]
