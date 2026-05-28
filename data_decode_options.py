@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 import re
 from datetime import date
+from typing import Union
 
 from ice_helper.datetime_misc import ICE_ts_event_to_dt
 
@@ -23,29 +24,35 @@ from ice_helper.types_period import (
                                         ICEDeliveryPeriod_Year
                                         )
 
-class OptionSymbolDecodeException(Exception, ABC):
-    def __init__(self, symbol: str)-> None:
-        self.symbol = symbol
-        super().__init__(self.symbol)
-    
-    @property
-    @abstractmethod
-    def message(self) -> str:
-        pass
-    
-
-class OptionSymbolDecodeException_NoMatch(OptionSymbolDecodeException):
-    'Raised when tree parameters violate no-arbitrage bounds (e.g., d >= e^(r*dt) or u <= e^(r*dt))'
-    def __init__(self, symbol: str)-> None:
-        super().__init__(symbol=symbol)
-        
-    @property
-    def message(self) -> str:
-        return 'No match found for option symbol: {symbol}'
 
 
+class ICEOptionsData(ABC):
+    @classmethod
+    def decode_csv_row(cls, row: dict[str, str])-> ICEOptionsDataUnion:
+        try:
+            symbol = row.get('symbol')
+            
+            if not symbol:
+                raise ValueError('symbol is None')
+            
+            symbol_len = len(symbol)
 
-class ICEOptionsData:
+            match symbol_len:
+                case 32:
+                    # Month
+                    return ICEOptionsData_Month(row)
+                case 17:
+                    # QSY
+                    return ICEFuturesData_QSY(row)
+                case 23:
+                    return ICEFuturesData_Spread_Month(row)
+                case 35:
+                    return ICEFuturesData_Spread_QSY(row)
+                case _:
+                    return ICEFuturesData_Unencoded(row)
+        except:
+            return ICEOptionsData_Unencoded(row)
+                
     def __init__(self, row: dict[str, str]):
         self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
         self.rtype = row.get('rtype')
@@ -56,6 +63,23 @@ class ICEOptionsData:
         self.low_price = row.get('low')
         self.close_price = row.get('close')
         self.volume = row.get('volume') 
+           
+    @abstractmethod
+    def __str__(self) -> str:
+        return (    
+                    f'ts_event: {self.ts_event}\n'
+                    f'rtype: {self.rtype}\n'
+                    f'publisher_id: {self.publisher_id}\n'
+                    f'instrument_id: {self.instrument_id}\n'
+                    f'open_price: {self.open_price}\n'
+                    f'high_price: {self.high_price}\n'
+                    f'low_price: {self.low_price}\n'
+                    f'close_price: {self.close_price}\n'
+                    f'volume: {self.volume}\n'
+                )
+
+class ICEOptionsData_Month(ICEOptionsData):
+    def __init__(self, row: dict[str, str]):
         self.symbol = row.get('symbol')
         
         if not self.symbol:
@@ -163,9 +187,25 @@ class ICEOptionsData:
         
         
         
+class ICEOptionsData_Unencoded(ICEOptionsData):
+    def __init__(self, row: dict[str, str]):
+        self.symbol = row.get('symbol')
+        
+        super().__init__(row)
+        
+    def __str__(self) -> str:
+        return (f'symbol: {self.symbol}\n' 
+                + super().__str__())
 
 
 
 
 
 
+
+
+
+ICEOptionsDataUnion = Union[
+                            ICEOptionsData_Unencoded, 
+                            ICEOptionsDataA, 
+                            ]

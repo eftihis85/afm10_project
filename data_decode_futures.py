@@ -58,8 +58,7 @@ class ICEFuturesData(ABC):
         self.low_price = row.get('low')
         self.close_price = row.get('close')
         self.volume = row.get('volume')
-        
-        
+           
     @abstractmethod
     def __str__(self) -> str:
         return (    
@@ -199,44 +198,44 @@ class ICEFuturesData_Spread_Month(ICEFuturesData):
         if not match:
             raise ValueError('symbol does not match pattern')
         
-        self.from__contract_code = str(match.group(1)).strip()
-        self.from__contract_type = ICEContractType.from_code(str(match.group(2)))
-        self.from__contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(3)))
+        self.leg1_contract_code = str(match.group(1)).strip()
+        self.leg1_contract_type = ICEContractType.from_code(str(match.group(2)))
+        self.leg1_contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(3)))
         
-        from__contract_delivery_month_code = str(match.group(4))
-        # from__contract_delivery_day_of_the_month = int(match.group(5))
-        from__contract_delivery_year = int(match.group(6))
+        leg1_contract_delivery_month_code = str(match.group(4))
+        # leg1_contract_delivery_day_of_the_month = int(match.group(5))
+        leg1_contract_delivery_year = int(match.group(6))
         
-        self.from__contract_delivery_period:ICEDeliveryPeriod = ICEDeliveryPeriod_Month(year = from__contract_delivery_year,
-                                                                                month = ICEMonth.from_code(from__contract_delivery_month_code).calendar_order)
+        self.leg1_contract_delivery_period:ICEDeliveryPeriod = ICEDeliveryPeriod_Month(year = leg1_contract_delivery_year,
+                                                                                month = ICEMonth.from_code(leg1_contract_delivery_month_code).calendar_order)
         # self.dash = str(match.group(7))
-        self.to__contract_code = str(match.group(8)).strip()
-        self.to__contract_type = ICEContractType.from_code(str(match.group(9)))
-        self.to__contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(10)))
+        self.leg2_contract_code = str(match.group(8)).strip()
+        self.leg2_contract_type = ICEContractType.from_code(str(match.group(9)))
+        self.leg2_contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(10)))
         
-        to__contract_delivery_month_code = str(match.group(11))
-        # to__contract_delivery_day_of_the_month = int(match.group(12))
-        to__contract_delivery_year = int(match.group(13))
+        leg2_contract_delivery_month_code = str(match.group(11))
+        # leg2_contract_delivery_day_of_the_month = int(match.group(12))
+        leg2_contract_delivery_year = int(match.group(13))
         
-        self.from__contract_delivery_period:ICEDeliveryPeriod = ICEDeliveryPeriod_Month(year = to__contract_delivery_year,
-                                                                                month = ICEMonth.from_code(to__contract_delivery_month_code).calendar_order)
+        self.leg2_contract_delivery_period:ICEDeliveryPeriod = ICEDeliveryPeriod_Month(year = leg2_contract_delivery_year,
+                                                                                month = ICEMonth.from_code(leg2_contract_delivery_month_code).calendar_order)
         
-        if self.from__contract_code != self.to__contract_code:
-            raise ValueError('contract_code_from != contract_code_to')
+        if self.leg1_contract_code != self.leg2_contract_code:
+            raise ValueError('leg1_contract_code != leg2_contract_code')
             
-        if self.from__contract_type != self.to__contract_type:
-            raise ValueError('contract_type_from != contract_type_to')
+        if self.leg1_contract_type != self.leg2_contract_type:
+            raise ValueError('leg1_contract_type != leg2_contract_type')
                              
-        if self.from__contract_delivery_term != self.to__contract_delivery_term:
-            raise ValueError('contract_delivery_term_from != contract_delivery_term_to')
+        if self.leg1_contract_delivery_term != self.leg2_contract_delivery_term:
+            raise ValueError('leg1_contract_delivery_term != leg2_contract_delivery_term')
         
         super().__init__(row)
         
     def __str__(self) -> str:
-        return (f'contract_code: {self.from__contract_code}\n'
-                f'contract_type: {self.from__contract_type}\n'
-                f'contract_delivery_term: {self.from__contract_delivery_term}\n'
-                f'contract_delivery: {self.from__contract_delivery_period}\n'
+        return (f'contract_code: {self.leg1_contract_code}\n'
+                f'contract_type: {self.leg1_contract_type}\n'
+                f'contract_delivery_term: {self.leg1_contract_delivery_term}\n'
+                f'contract_delivery: {self.leg1_contract_delivery_period}\n'
                 + super().__str__())
         
 class ICEFuturesData_Spread_QSY(ICEFuturesData):
@@ -275,64 +274,64 @@ class ICEFuturesData_Spread_QSY(ICEFuturesData):
         if not match:
             raise ValueError('symbol does not match pattern')
         
-        self.from__contract_code = str(match.group(1)).strip()
-        self.from__contract_type = ICEContractType.from_code(str(match.group(2)))
-        self.from__contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(3)))
+        self.leg1_contract_code = str(match.group(1)).strip()
+        self.leg1_contract_type = ICEContractType.from_code(str(match.group(2)))
+        self.leg1_contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(3)))
         
-        from__contract_delivery_month_code_from = str(match.group(4))
-        from__contract_delivery_day_of_the_month_from = int(match.group(5))
-        from__contract_delivery_year_from = int(match.group(6))
-        # from__dot = str(match.group(7))
-        from__contract_delivery_month_code_to = str(match.group(8))
-        from__contract_delivery_day_of_the_month_to = int(match.group(9))
-        from__contract_delivery_year_to = int(match.group(10))
+        leg1_contract_delivery_month_code_from = str(match.group(4))
+        leg1_contract_delivery_day_of_the_month_from = int(match.group(5))
+        leg1_contract_delivery_year_from = int(match.group(6))
+        # leg1_dot = str(match.group(7))
+        leg1_contract_delivery_month_code_to = str(match.group(8))
+        leg1_contract_delivery_day_of_the_month_to = int(match.group(9))
+        leg1_contract_delivery_year_to = int(match.group(10))
         
-        self.from__contract_delivery_period = ICEDeliveryPeriod_Season.from_values(
-                                                                                        from_year = from__contract_delivery_year_from,
-                                                                                        from_month = ICEMonth.from_code(from__contract_delivery_month_code_from).calendar_order,
-                                                                                        from_day = from__contract_delivery_day_of_the_month_from,
-                                                                                        to_year = from__contract_delivery_year_to,
-                                                                                        to_month = ICEMonth.from_code(from__contract_delivery_month_code_to).calendar_order, 
-                                                                                        to_day = from__contract_delivery_day_of_the_month_to
+        self.leg1_contract_delivery_period = ICEDeliveryPeriod_Season.from_values(
+                                                                                        from_year = leg1_contract_delivery_year_from,
+                                                                                        from_month = ICEMonth.from_code(leg1_contract_delivery_month_code_from).calendar_order,
+                                                                                        from_day = leg1_contract_delivery_day_of_the_month_from,
+                                                                                        to_year = leg1_contract_delivery_year_to,
+                                                                                        to_month = ICEMonth.from_code(leg1_contract_delivery_month_code_to).calendar_order, 
+                                                                                        to_day = leg1_contract_delivery_day_of_the_month_to
                                                                                     )
         # self.dash = str(match.group(11))
-        self.to__contract_code = str(match.group(12)).strip()
-        self.to__contract_type = ICEContractType.from_code(str(match.group(13)))
-        self.to__contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(14)))
+        self.leg2_contract_code = str(match.group(12)).strip()
+        self.leg2_contract_type = ICEContractType.from_code(str(match.group(13)))
+        self.leg2_contract_delivery_term = ICEContractDeliveryTerm.from_code(str(match.group(14)))
         
-        to__contract_delivery_month_code_from = str(match.group(15))
-        to__contract_delivery_day_of_the_month_from = int(match.group(16))
-        to__contract_delivery_year_from = int(match.group(17))
+        leg2_contract_delivery_month_code_from = str(match.group(15))
+        leg2_contract_delivery_day_of_the_month_from = int(match.group(16))
+        leg2_contract_delivery_year_from = int(match.group(17))
         # from__dot = str(match.group(18))
-        to__contract_delivery_month_code_to = str(match.group(19))
-        to__contract_delivery_day_of_the_month_to = int(match.group(20))
-        to__contract_delivery_year_to = int(match.group(21))
+        leg2_contract_delivery_month_code_to = str(match.group(19))
+        leg2_contract_delivery_day_of_the_month_to = int(match.group(20))
+        leg2_contract_delivery_year_to = int(match.group(21))
         
-        self.from__contract_delivery_period = ICEDeliveryPeriod_Season.from_values(
-                                                                                        from_year = to__contract_delivery_year_from,
-                                                                                        from_month = ICEMonth.from_code(to__contract_delivery_month_code_from).calendar_order,
-                                                                                        from_day = to__contract_delivery_day_of_the_month_from,
-                                                                                        to_year = to__contract_delivery_year_to,
-                                                                                        to_month = ICEMonth.from_code(to__contract_delivery_month_code_to).calendar_order, 
-                                                                                        to_day = to__contract_delivery_day_of_the_month_to
+        self.leg2_contract_delivery_period = ICEDeliveryPeriod_Season.from_values(
+                                                                                        from_year = leg2_contract_delivery_year_from,
+                                                                                        from_month = ICEMonth.from_code(leg2_contract_delivery_month_code_from).calendar_order,
+                                                                                        from_day = leg2_contract_delivery_day_of_the_month_from,
+                                                                                        to_year = leg2_contract_delivery_year_to,
+                                                                                        to_month = ICEMonth.from_code(leg2_contract_delivery_month_code_to).calendar_order, 
+                                                                                        to_day = leg2_contract_delivery_day_of_the_month_to
                                                                                     )
         
-        if self.from__contract_code != self.to__contract_code:
-            raise ValueError('contract_code_from != contract_code_to')
+        if self.leg1_contract_code != self.leg2_contract_code:
+            raise ValueError('leg1_contract_code != leg2_contract_code')
             
-        if self.from__contract_type != self.to__contract_type:
-            raise ValueError('contract_type_from != contract_type_to')
+        if self.leg1_contract_type != self.leg2_contract_type:
+            raise ValueError('leg1_contract_type != leg2_contract_type')
                              
-        if self.from__contract_delivery_term != self.to__contract_delivery_term:
-            raise ValueError('contract_delivery_term_from != contract_delivery_term_to')
+        if self.leg1_contract_delivery_term != self.leg2_contract_delivery_term:
+            raise ValueError('leg1_contract_delivery_term != leg2_contract_delivery_term')
         
         super().__init__(row)
         
     def __str__(self) -> str:
-        return (f'contract_code: {self.from__contract_code}\n'
-                f'contract_type: {self.from__contract_type}\n'
-                f'contract_delivery_term: {self.from__contract_delivery_term}\n'
-                f'contract_delivery: {self.from__contract_delivery_period}\n'
+        return (f'contract_code: {self.leg1_contract_code}\n'
+                f'contract_type: {self.leg1_contract_type}\n'
+                f'contract_delivery_term: {self.leg1_contract_delivery_term}\n'
+                f'contract_delivery: {self.leg1_contract_delivery_period}\n'
                 + super().__str__())
 
 class ICEFuturesData_Unencoded(ICEFuturesData):
