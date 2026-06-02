@@ -20,7 +20,7 @@ class ICECodeEnum(Enum):
     def from_code(cls, code: str) -> Self:
         pass
     
-    
+
 class FromCode:
     """Mixin to provide from_code lookup for ICECodeEnums."""
     code: str  # Type hint so the linter knows this property exists on members

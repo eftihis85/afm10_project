@@ -110,6 +110,7 @@ class ICEOptionTerm(FromCode, ICECodeEnum):
     NEXT_DAY = ('N', 'Next Day Option')
     QUARTER = ('Q', 'Quarter')
     VARIABLE_SEASON = ('V', 'Variable Season')
+    SEASON = ('S', 'Season')
     CALENDAR_YEAR = ('Y', 'Calendar Year')
 
 class ICEPayoffStyle(FromCode, ICECodeEnum):
