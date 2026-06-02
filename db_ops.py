@@ -17,17 +17,38 @@ __FUTURES_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __
 __MAIN_DB_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __MAIN_DB_FILENAME 
 
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Create database
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+create_database(db_filepath=__MAIN_DB_FILE_PATH)
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Table definition
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
 class ICEOptionsDataMonthTable(DbTableMixin, TableTemplateEnum):
-    id = DbField(datatype=DbDatatype.INT, is_pk=True)
-    symbol = DbField(datatype=DbDatatype.TEXT, uniqueness_group=1)
-    ts_event = DbField(datatype=DbDatatype.DATETIME_INT, uniqueness_group=1)
-    rtype = DbField(datatype=DbDatatype.INT, uniqueness_group=1)
-    publisher_id = DbField(datatype=DbDatatype.INT, uniqueness_group=1)
-    instrument_id = DbField(datatype=DbDatatype.INT, uniqueness_group=1)
-    open_price = DbField(datatype=DbDatatype.REAL)
-    high_price = DbField(datatype=DbDatatype.REAL)
-    low_price = DbField(datatype=DbDatatype.REAL)
-    close_price = DbField(datatype=DbDatatype.REAL)
+    
+    # The event timestamp as the number of nanoseconds since the UNIX epoch.
+    ts_event = DbField(datatype=DbDatatype.DATETIME_INT, is_pk=True)
+
+    # he publisher ID assigned by Databento, which denotes the dataset and venue.
+    publisher_id = DbField(datatype=DbDatatype.INT, is_pk=True)
+    
+    # The numeric instrument ID.
+    instrument_id = DbField(datatype=DbDatatype.INT, is_pk=True)
+    
+    # id = DbField(datatype=DbDatatype.INT, is_pk=True)
+    symbol = DbField(datatype=DbDatatype.TEXT)
+    
+    # The record type. Each schema corresponds with a single rtype value
+    rtype = DbField(datatype=DbDatatype.INT) 
+    
+    open = DbField(datatype=DbDatatype.REAL)
+    high = DbField(datatype=DbDatatype.REAL)
+    low = DbField(datatype=DbDatatype.REAL)
+    close = DbField(datatype=DbDatatype.REAL)
     volume = DbField(datatype=DbDatatype.REAL)
     contract_code = DbField(datatype=DbDatatype.TEXT)
     contract_type = DbField(datatype=DbDatatype.TEXT)
@@ -47,31 +68,22 @@ class ICEOptionsDataMonthTable(DbTableMixin, TableTemplateEnum):
     @classmethod
     def get_row_data(cls, *args: Any, **kwargs: Any) -> dict[Any, Any]:
         return {}
-
-# def create_options_month_table(db_path: Path):
-#     """Creates the table for storing ICEOptionsData_Month records."""
-#     schema = ICEOptionsDataMonthTable.get_create_table_sql(ICEOptionsDataMonthTable)
     
-#     if not db_path.exists():
-#         create_database(db_filepath=db_path, init_sql=schema)
-#     else:
-#         with sqlite3.connect(db_path) as conn:
-#             conn.executescript(schema)
 
-# init_sql=ICEOptionsDataMonthTable.get_create_table_sql(ICEOptionsDataMonthTable)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Create table
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-# # create_options_month_table(db_path=__MAIN_DB_FILE_PATH)
-# sqlite3ConnectionProvider = Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH)
-
-# @dynamic_database_connection_closer
-# def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
-#     with sqlite3_connection_provider.connection as conn:
-#         conn.executescript(init_sql)
+init_sql=ICEOptionsDataMonthTable.get_create_table_sql(ICEOptionsDataMonthTable)
+@dynamic_database_connection_closer
+def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
+    with sqlite3_connection_provider.connection as conn:
+        conn.executescript(init_sql)
 
 
-# create_table(sqlite3_connection_provider=sqlite3ConnectionProvider)
+sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH)
+create_table(sqlite3_connection_provider=sqlite3_connection_provider)
 
-sqlite3ConnectionProvider = Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH)
 
 
 def parse_options_csv(csv_file_path: Path):
@@ -116,26 +128,44 @@ def parse_options_csv(csv_file_path: Path):
         
         with Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH).connection as conn:
             query = '''
-                INSERT INTO ice_options_data_month (ts_event, rtype, publisher_id, instrument_id, open_price, high_price,
-                                                    low_price, close_price, volume, contract_code, contract_type, contract_term,
-                                                    contract_delivery_period, option_term, option_payoff_style, option_exercise_style,
-                                                    strike_decimals, strike_price, exact_expiry_date)
+                INSERT INTO ice_options_data_month (
+                    symbol,
+                    ts_event,
+                    rtype,
+                    publisher_id,
+                    instrument_id,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume,
+                    contract_code,
+                    contract_type,
+                    contract_term,
+                    contract_delivery_period,
+                    option_term,
+                    option_payoff_style,
+                    option_exercise_style,
+                    strike_decimals,
+                    strike_price,
+                    exact_expiry_date
+                )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(ice_options_data_month.ts_event, ice_options_data_month.rtype, ice_options_data_month.publisher_id,
-                                ice_options_data_month.instrument_id, ice_options_data_month.open, ice_options_data_month.high,
-                                ice_options_data_month.low, ice_options_data_month.close, ice_options_data_month.volume,
-                                ice_options_data_month.contract_code, ice_options_data_month.contract_type.code, ice_options_data_month.contract_term.code,
-                                ice_options_data_month.contract_delivery_period.__str__(), ice_options_data_month.option_term.code, ice_options_data_month.option_payoff_style.code,
-                                ice_options_data_month.option_exercise_style.code, ice_options_data_month.strike_decimals, ice_options_data_month.strike_price,
-                                ice_options_data_month.exact_expiry_date.timestamp())
-                                 for ice_options_data_month in ice_options_data_month_list])
+                              [(d.symbol, d.ts_event, d.rtype, d.publisher_id,
+                                d.instrument_id, d.open, d.high,
+                                d.low, d.close, d.volume,
+                                d.contract_code, d.contract_type.code, d.contract_term.code,
+                                d.contract_delivery_period.__str__(), d.option_term.code, d.option_payoff_style.code,
+                                d.option_exercise_style.code, d.strike_decimals, d.strike_price,
+                                d.exact_expiry_date.timestamp())
+                                 for d in ice_options_data_month_list])
 
             
         
                 
-parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
+# parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
 
 
 # def parse_futures_csv(csv_file_path: Path):
