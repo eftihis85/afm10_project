@@ -1,7 +1,7 @@
 -- SQLBook: Code
 -- DROP TABLE ice_options_data_month 
 -- SQLBook: Code
-SELECT strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 'exp date', *  FROM ice_options_data_month WHERE symbol  like 'TFO FMF0027%'
+SELECT strftime("%m-%d-%Y %H:%M:%S", exact_expiry_date, 'unixepoch', '+1 hours') 'exp date', *  FROM ice_options_data_month WHERE symbol  like 'TFO FMF0027%'
 -- SQLBook: Code
 SELECT * FROM ice_options_data_month ORDER BY contract_delivery_period ASC
 -- SQLBook: Code
@@ -54,13 +54,16 @@ FROM        ice_options_data_month ohlc
 ### Put / Call pivot
 -- SQLBook: Code
 SELECT      count(*) 'check',
+            symbol,
             contract_code,
             DATE(ts_event) date, 
             contract_delivery_period, 
             strike_price, 
             option_exercise_style 'ex style',
             option_term 'opt term',
-            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 'exp date',
+            exact_expiry_date, 
+            strftime("%m-%d-%Y %H:%M:%S", exact_expiry_date, 'unixepoch', 'localtime' ----------- MUST FIX ---------------
+            ) expiry_date,
             sum(CASE option_payoff_style WHEN 'P' THEN close ELSE 0 END) put_price,
             sum(CASE option_payoff_style WHEN 'C' THEN close ELSE 0 END) call_price
 FROM        (
@@ -75,17 +78,19 @@ FROM        (
                             ) day_total
                             ON ohlc.symbol = day_total.symbol
             ) 
-GROUP BY    contract_code,
+GROUP BY    symbol,
+            contract_code,
             ts_event, 
             contract_delivery_period, 
             strike_price, 
             option_exercise_style,
             option_term,
-            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 
-ORDER BY    contract_code,
+            exact_expiry_date
+ORDER BY    symbol,
+contract_code,
             ts_event, 
             contract_delivery_period, 
             strike_price, 
             option_exercise_style,
             option_term,
-            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 
+            exact_expiry_date 
