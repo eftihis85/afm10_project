@@ -1,0 +1,91 @@
+-- SQLBook: Code
+-- DROP TABLE ice_options_data_month 
+-- SQLBook: Code
+SELECT strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 'exp date', *  FROM ice_options_data_month WHERE symbol  like 'TFO FMF0027%'
+-- SQLBook: Code
+SELECT * FROM ice_options_data_month ORDER BY contract_delivery_period ASC
+-- SQLBook: Code
+SELECT ts_event, instrument_id, count(DISTINCT publisher_id)
+													FROM ice_options_data_month
+													GROUP by ts_event, instrument_id 
+													HAVING count(DISTINCT publisher_id) > 1
+-- SQLBook: Code
+SELECT * FROM ice_options_data_month
+where (ts_event, instrument_id) IN (
+									select ts_event, instrument_id 
+									from  (
+													SELECT ts_event, instrument_id, count(DISTINCT publisher_id)
+													FROM ice_options_data_month
+                                                    GROUP BY ts_event, instrument_id
+													HAVING count(DISTINCT publisher_id) > 1
+												)
+);
+
+-- SQLBook: Code
+SELECT * FROM ice_options_data_month where instrument_id = 108476839
+-- SQLBook: Code
+SELECT DISTINCT instrument_id from ice_options_data_month WHERE close is null
+INTERSECT
+SELECT DISTINCT instrument_id from ice_options_data_month WHERE close is not null
+-- SQLBook: Code
+SELECT  symbol,
+        contract_code, 
+        contract_term,
+        contract_type,
+        contract_delivery_period, 
+        CASE WHEN publisher_id=58 then close END, 
+        CASE WHEN publisher_id=85 then close END
+FROM    ice_options_data_month
+-- SQLBook: Markup
+# DATA 
+-- SQLBook: Code
+SELECT      ohlc.*, ohlc.close * (ohlc.volume / day_total.volume) as wavg_price
+FROM        ice_options_data_month ohlc
+                INNER JOIN
+            (
+                SELECT      symbol, sum(volume) volume
+                FROM        ice_options_data_month 
+                WHERE       close is not null
+                GROUP BY    symbol
+            ) day_total
+            ON ohlc.symbol = day_total.symbol
+
+-- SQLBook: Markup
+### Put / Call pivot
+-- SQLBook: Code
+SELECT      count(*) 'check',
+            contract_code,
+            DATE(ts_event) date, 
+            contract_delivery_period, 
+            strike_price, 
+            option_exercise_style 'ex style',
+            option_term 'opt term',
+            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 'exp date',
+            sum(CASE option_payoff_style WHEN 'P' THEN close ELSE 0 END) put_price,
+            sum(CASE option_payoff_style WHEN 'C' THEN close ELSE 0 END) call_price
+FROM        (
+                SELECT      ohlc.*, ohlc.close * (ohlc.volume / day_total.volume) as wavg_price
+                FROM        ice_options_data_month ohlc
+                                INNER JOIN
+                            (
+                                SELECT      symbol, sum(volume) volume
+                                FROM        ice_options_data_month 
+                                WHERE       close is not null
+                                GROUP BY    symbol
+                            ) day_total
+                            ON ohlc.symbol = day_total.symbol
+            ) 
+GROUP BY    contract_code,
+            ts_event, 
+            contract_delivery_period, 
+            strike_price, 
+            option_exercise_style,
+            option_term,
+            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 
+ORDER BY    contract_code,
+            ts_event, 
+            contract_delivery_period, 
+            strike_price, 
+            option_exercise_style,
+            option_term,
+            strftime("%m-%d-%Y", exact_expiry_date, 'unixepoch') 

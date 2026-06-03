@@ -1,12 +1,13 @@
 # read the "TFO · Dutch TTF Natural Gas Options - ohlcv-1d - 2026-04-20 00:00 2026-05-20 16:00.csv", create a db, and using the data_decode.py store the data that are mapped successfully in one table in  DB.the data that they produce an error in ICEOptionData store them  
 
 import csv
+from dataclasses import dataclass
 import sqlite3
 from pathlib import Path
 from typing import Final, Any
-from data_decode_options import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Unencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
+from data_decode_options import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
 from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum
-from sqlite3_helper.sqlite3_helper import create_database, dynamic_database_connection_closer, Sqlite3ConnectionProvider
+from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
 
 __DATA_FOLDER:Final = 'data'
 __OPTIONS_FILE_NAME = 'TFO · Dutch TTF Natural Gas Options - ohlcv-1d - 2026-04-20 00:00 2026-05-20 16:00.csv'
@@ -22,7 +23,7 @@ __MAIN_DB_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __
 # Create database
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-create_database(db_filepath=__MAIN_DB_FILE_PATH)
+create_database_pass_if_exists(db_filepath=__MAIN_DB_FILE_PATH)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Table definition
@@ -49,7 +50,7 @@ class ICEOptionsDataMonthTable(DbTableMixin, TableTemplateEnum):
     high = DbField(datatype=DbDatatype.REAL)
     low = DbField(datatype=DbDatatype.REAL)
     close = DbField(datatype=DbDatatype.REAL)
-    volume = DbField(datatype=DbDatatype.REAL)
+    volume = DbField(datatype=DbDatatype.INT)
     contract_code = DbField(datatype=DbDatatype.TEXT)
     contract_type = DbField(datatype=DbDatatype.TEXT)
     contract_term = DbField(datatype=DbDatatype.TEXT)
@@ -84,9 +85,20 @@ def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
 sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH)
 create_table(sqlite3_connection_provider=sqlite3_connection_provider)
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Parse csv and import to db
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+@dataclass
+class parse_options_csv_res:
+    ice_options_data_month_list: list[ICEOptionsData_Month]
+    ice_options_data_undecoded_month_list: list[ICEOptionsData_Undencoded_Month]
+    ice_options_data_qsy_list: list[ICEOptionsData_QSY]
+    ice_options_data_undecoded_truncation_issue: list[ICEOptionsData_Unencoded_TruncationIssue]
+    ice_options_data_undecoded_unknown_list: list[ICEOptionsData_Unencoded_Unknown]
+    
 
-def parse_options_csv(csv_file_path: Path):
+def parse_options_csv(csv_file_path: Path)-> parse_options_csv_res:
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         
@@ -96,44 +108,51 @@ def parse_options_csv(csv_file_path: Path):
             raise RuntimeError('Invalid fieldnames in the csv file')
         
         ice_options_data_month_list: list[ICEOptionsData_Month] =[]
-        for row in reader:
+        ice_options_data_undecoded_month_list: list[ICEOptionsData_Undencoded_Month] =[]
+        ice_options_data_qsy_list: list[ICEOptionsData_QSY] =[]
+        ice_options_data_undecoded_truncation_issue: list[ICEOptionsData_Unencoded_TruncationIssue] =[]
+        ice_options_data_undecoded_unknown_list: list[ICEOptionsData_Unencoded_Unknown] =[]
+        
+        for row in reader:    
+            row_decoded:ICEOptionsDataUnion = ICEOptionsDataABC.decode_csv_row(row)
             
-            # pattern = r'([A-Z\s]{5})([\d\s]{4})([\d]{8})'
-            
-            # symbol = row['symbol']
-            # match = re.match(pattern=pattern, string= symbol) # 'TFO  22  31131494'
-            
-            # # TFO  65  31143475
-            # if match:
-            #     print(symbol)
-            
-            
-            a:ICEOptionsDataUnion = ICEOptionsDataABC.decode_csv_row(row)
-            
-            match a:
+            match row_decoded:
                 case ICEOptionsData_Month():
-                    # print(a)
-                    ice_options_data_month_list.append(a)
-                case ICEOptionsData_Unencoded_Month():
-                    print('Undecoded month' + str(a.symbol))
+                    ice_options_data_month_list.append(row_decoded)
+                
+                case ICEOptionsData_Undencoded_Month():
+                    ice_options_data_undecoded_month_list.append(row_decoded)
+                
                 case ICEOptionsData_QSY():
-                    pass
+                    ice_options_data_qsy_list.append(row_decoded)
+                    
                 case ICEOptionsData_Unencoded_RecordsWithId():
                     pass
+                
                 case ICEOptionsData_Unencoded_TruncationIssue():
-                    pass
+                    ice_options_data_undecoded_truncation_issue.append(row_decoded)
+                    
                 case ICEOptionsData_Unencoded_Unknown():
-                    print('Un-decoded ' + str(a.symbol))
-        
-        
+                    ice_options_data_undecoded_unknown_list.append(row_decoded)
+                    
+        return parse_options_csv_res(ice_options_data_month_list=ice_options_data_month_list,
+                                     ice_options_data_undecoded_month_list=ice_options_data_undecoded_month_list,
+                                     ice_options_data_qsy_list=ice_options_data_qsy_list,
+                                     ice_options_data_undecoded_truncation_issue=ice_options_data_undecoded_truncation_issue,
+                                     ice_options_data_undecoded_unknown_list=ice_options_data_undecoded_unknown_list)
+    
+    
+res = parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
+
+def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month]):
         with Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH).connection as conn:
             query = '''
                 INSERT INTO ice_options_data_month (
-                    symbol,
                     ts_event,
-                    rtype,
                     publisher_id,
                     instrument_id,
+                    symbol,
+                    rtype,
                     open,
                     high,
                     low,
@@ -150,11 +169,11 @@ def parse_options_csv(csv_file_path: Path):
                     strike_price,
                     exact_expiry_date
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.symbol, d.ts_event, d.rtype, d.publisher_id,
-                                d.instrument_id, d.open, d.high,
+                              [(d.ts_event, d.publisher_id,
+                                d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_term.code,
                                 d.contract_delivery_period.__str__(), d.option_term.code, d.option_payoff_style.code,
@@ -162,11 +181,9 @@ def parse_options_csv(csv_file_path: Path):
                                 d.exact_expiry_date.timestamp())
                                  for d in ice_options_data_month_list])
 
-            
-        
-                
-# parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
 
+# upload_data_to_db(ice_options_data_month_list=res.ice_options_data_month_list)
+print(1)         
 
 # def parse_futures_csv(csv_file_path: Path):
 #     with open(csv_file_path, mode='r', encoding='utf-8') as file:

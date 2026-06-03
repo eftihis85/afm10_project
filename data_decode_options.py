@@ -43,7 +43,7 @@ class ICEOptionsDataABC(ABC):
                     try:
                         return ICEOptionsData_Month(row)
                     except:
-                        return ICEOptionsData_Unencoded_Month(row)
+                        return ICEOptionsData_Undencoded_Month(row)
                 case 17:
                     return ICEOptionsData_Unencoded_RecordsWithId(row)
                 case 35:
@@ -59,21 +59,33 @@ class ICEOptionsDataABC(ABC):
         def get_int_or_none_from_str_or_none(s:str | None)-> int| None:
             if s is None:
                 return None
-            
             try:
                 return int(s)
             except:
                 return None
+            
+        def get_float_or_none_from_str_or_none(s:str | None)-> float| None:
+            if s is None:
+                return None
+            try:
+                return float(s)
+            except:
+                return None
+            
         self.symbol = row.get('symbol') or ''
         self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
         self.rtype = get_int_or_none_from_str_or_none(s=row.get('rtype'))
         self.publisher_id = get_int_or_none_from_str_or_none(s=row.get('publisher_id'))
         self.instrument_id = get_int_or_none_from_str_or_none(s=row.get('instrument_id'))
-        self.open = get_int_or_none_from_str_or_none(row.get('open'))
-        self.high = get_int_or_none_from_str_or_none(row.get('high'))
-        self.low = get_int_or_none_from_str_or_none(row.get('low'))
-        self.close = get_int_or_none_from_str_or_none(row.get('close'))
         self.volume = get_int_or_none_from_str_or_none(row.get('volume'))
+        
+        
+        self.open = get_float_or_none_from_str_or_none(row.get('open'))
+        self.high = get_float_or_none_from_str_or_none(row.get('high'))
+        self.low = get_float_or_none_from_str_or_none(row.get('low'))
+        self.close = get_float_or_none_from_str_or_none(row.get('close'))
+        
+        
            
     @abstractmethod
     def __str__(self) -> str:
@@ -417,7 +429,7 @@ class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
                     f'volume: {self.volume}\n'
                 )
 
-class ICEOptionsData_Unencoded_Month(ICEOptionsData_UnencodedABC):
+class ICEOptionsData_Undencoded_Month(ICEOptionsData_UnencodedABC):
     def __init__(self, row: dict[str, str]):
         self.symbol = row.get('symbol')
         
@@ -472,7 +484,7 @@ class ICEOptionsData_Unencoded_RecordsWithId(ICEOptionsData_UnencodedABC):
 ICEOptionsDataUnion = Union[
                             ICEOptionsData_Month, 
                             ICEOptionsData_QSY,
-                            ICEOptionsData_Unencoded_Month,
+                            ICEOptionsData_Undencoded_Month,
                             ICEOptionsData_Unencoded_RecordsWithId,
                             ICEOptionsData_Unencoded_TruncationIssue,
                             ICEOptionsData_Unencoded_Unknown,
