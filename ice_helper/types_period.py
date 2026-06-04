@@ -12,13 +12,6 @@ class ICEDeliveryPeriodABC(ABC):
     def __str__(self) -> str:
         pass
 
-
-# class ICEDeliveryPeriod_NotSet(ICEDeliveryPeriodABC):
-#     def __init__(self):
-#         pass
-            
-#     def __str__(self) -> str:
-#         return 'Not set!'
         
 class ICEDeliveryPeriod_Daily(ICEDeliveryPeriodABC):
     def __init__(self, date: date):
@@ -29,6 +22,13 @@ class ICEDeliveryPeriod_Daily(ICEDeliveryPeriodABC):
 
 class ICEDeliveryPeriod_Month(ICEDeliveryPeriodABC):
     def __init__(self, month: int, year: int):
+        
+        if month < 1 or month > 12:
+            raise ValueError('Month must be between 1 and 12')
+        
+        if year < 1900 or year > 2100:
+            raise ValueError('Year must be between 1900 and 2100')
+        
         self.month = month
         self.year = year
 
@@ -37,8 +37,12 @@ class ICEDeliveryPeriod_Month(ICEDeliveryPeriodABC):
     
 class ICEDeliveryPeriod_Quarter(ICEDeliveryPeriodABC):
     def __init__(self, quarter: int, year: int):
+        if year < 1900 or year > 2100:
+            raise ValueError('Year must be between 1900 and 2100')
+        
         self._quarter = quarter
         self.year = year
+        
 
     @property
     def quarter(self) -> int:

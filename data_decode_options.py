@@ -47,7 +47,7 @@ class ICEOptionsDataABC(ABC):
                 case 17:
                     return ICEOptionsData_Unencoded_RecordsWithId(row)
                 case 35:
-                    return ICEOptionsData_Unencoded_TruncationIssue(row)
+                    return ICEOptionsData_Unencoded_QSY_TruncationIssue(row)
                 case 38:
                     return ICEOptionsData_QSY(row)
                 case _:
@@ -71,8 +71,11 @@ class ICEOptionsDataABC(ABC):
                 return float(s)
             except:
                 return None
-            
+        
         self.symbol = row.get('symbol') or ''
+        
+        if len(self.symbol) == 0:
+            raise ValueError('symbol is None')
         self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
         self.rtype = get_int_or_none_from_str_or_none(s=row.get('rtype'))
         self.publisher_id = get_int_or_none_from_str_or_none(s=row.get('publisher_id'))
@@ -103,9 +106,9 @@ class ICEOptionsDataABC(ABC):
 
 class ICEOptionsData_Month(ICEOptionsDataABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
         
-        if not self.symbol:
+        if len(self.symbol) == 0:
             raise ValueError('symbol is None')
                 
     
@@ -145,7 +148,7 @@ class ICEOptionsData_Month(ICEOptionsDataABC):
         contract_delivery_term = str(match.group(3))
         contract_delivery_month_code = str(match.group(4))
         # contract_delivery_day_of_the_month = int(match.group(5))
-        contract_delivery_year = int(match.group(6))
+        contract_delivery_year = int(match.group(6)) +2000
         # underscore_char = str(match.group(7))
         # option_contract_block = str(match.group(8))
         option_term = str(match.group(9))
@@ -168,15 +171,15 @@ class ICEOptionsData_Month(ICEOptionsDataABC):
         self.option_term = ICEOptionTerm.from_code(option_term)
         self.option_payoff_style = ICEPayoffStyle.from_code(option_payoff_style)
         self.option_exercise_style = ICEOptionExerciseStyle.from_code(option_exercise_style)
-        self.strike_decimals = option_strike_decimals
-        self.strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
-        self.exact_expiry_date = datetime(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
+        self.option_strike_decimals = option_strike_decimals
+        self.option_strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
+        self.option_expiry_date = datetime(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
         
         super().__init__(row)
         
     # With correct decimals
     def _strike_price_str(self)->str:
-        return f'{self.strike_price:.{self.strike_decimals}f}'
+        return f'{self.option_strike_price:.{self.option_strike_decimals}f}'
         
     def __str__(self) -> str:
         return (    
@@ -189,7 +192,7 @@ class ICEOptionsData_Month(ICEOptionsDataABC):
                     f'option_payoff_style: {self.option_payoff_style}\n'
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
-                    f'exact_expiry_date: {self.exact_expiry_date}\n'
+                    f'option_expiry_date: {self.option_expiry_date}\n'
                     f'ts_event: {self.ts_event}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
@@ -203,9 +206,9 @@ class ICEOptionsData_Month(ICEOptionsDataABC):
 
 class ICEOptionsData_QSY(ICEOptionsDataABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
         
-        if not self.symbol:
+        if len(self.symbol) == 0:
             raise ValueError('symbol is None')
                 
     
@@ -233,9 +236,7 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
                     r'(\d{2})'       # option_expiry_short_year
                     r'$'      
                     )
-        
-        if self.symbol =='TFO FSV0026.H0027_OSCE0000083002092526':
-            i=1
+    
         
         match = re.match(pattern, self.symbol)
         
@@ -249,11 +250,11 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
         contract_delivery_term = str(match.group(3))
         contract_delivery_month_code_from = str(match.group(4))
         # contract_delivery_day_of_the_month_from = int(match.group(5))
-        contract_delivery_year_from = int(match.group(6))
+        contract_delivery_year_from = int(match.group(6))+2000
         # dot = str(match.group(7))
         contract_delivery_month_code_to = str(match.group(8))
         # contract_delivery_day_of_the_month_to = int(match.group(9))
-        contract_delivery_year_to = int(match.group(10))
+        contract_delivery_year_to = int(match.group(10)) +2000
         # underscore_char = str(match.group(11))
         # option_contract_block = str(match.group(12))
         option_term = str(match.group(13))
@@ -269,8 +270,10 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
         self.contract_code = contract_code
         self.contract_type = ICEContractType.from_code(contract_type)
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        self.contract_delivery_period = ICEDeliveryPeriod_Month(year = contract_delivery_year_from,
+        self.contract_delivery_period_from = ICEDeliveryPeriod_Month(year = contract_delivery_year_from,
                                                                 month = ICEMonth.from_code(contract_delivery_month_code_from).calendar_order)
+        self.contract_delivery_period_to = ICEDeliveryPeriod_Month(year = contract_delivery_year_to,
+                                                                month = ICEMonth.from_code(contract_delivery_month_code_to).calendar_order)
                                             
             
         self.option_term = ICEOptionTerm.from_code(option_term)
@@ -278,7 +281,10 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
         self.option_exercise_style = ICEOptionExerciseStyle.from_code(option_exercise_style)
         self.strike_decimals = option_strike_decimals
         self.strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
-        self.exact_expiry_date = date(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
+        self.option_expiry_date = date(day=option_expiry_day, month=option_expiry_month, year=option_expiry_year)
+        
+        super().__init__(row)
+
         
     # With correct decimals
     def _strike_price_str(self)->str:
@@ -290,26 +296,29 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
                     f'contract_code: {self.contract_code}\n'
                     f'contract_type: {self.contract_type}\n'
                     f'contract_delivery_term: {self.contract_term}\n'
-                    f'contract_delivery: {self.contract_delivery_period}\n'
+                    f'contract_delivery: {self.contract_delivery_period_from}\n'
                     f'option_term: {self.option_term}\n'
                     f'option_payoff_style: {self.option_payoff_style}\n'
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
-                    f'exact_expiry_date: {self.exact_expiry_date}\n'
+                    f'option_expiry_date: {self.option_expiry_date}\n'
                     f'ts_event: {self.ts_event}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'
-                    f'open_price: {self.open_price}\n'
-                    f'high_price: {self.high_price}\n'
-                    f'low_price: {self.low_price}\n'
-                    f'close_price: {self.close_price}\n'
+                    f'open_price: {self.open}\n'
+                    f'high_price: {self.high}\n'
+                    f'low_price: {self.low}\n'
+                    f'close_price: {self.close}\n'
                     f'volume: {self.volume}\n'
                 )
     
 class ICEOptionsData_UnencodedABC(ICEOptionsDataABC, ABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
+        
+        if len(self.symbol) == 0:
+            raise ValueError('symbol is None')
         
         super().__init__(row)
         
@@ -319,8 +328,10 @@ class ICEOptionsData_UnencodedABC(ICEOptionsDataABC, ABC):
         
 class ICEOptionsData_Unencoded_Unknown(ICEOptionsData_UnencodedABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
         
+        if len(self.symbol) == 0:
+            raise ValueError('symbol is None')        
         super().__init__(row)
         
     def __str__(self) -> str:
@@ -328,13 +339,12 @@ class ICEOptionsData_Unencoded_Unknown(ICEOptionsData_UnencodedABC):
                 + super().__str__())
 
 
-class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
+class ICEOptionsData_Unencoded_QSY_TruncationIssue(ICEOptionsData_UnencodedABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
         
-        if not self.symbol:
+        if len(self.symbol) == 0:
             raise ValueError('symbol is None')
-                
     
         # TFO FSM0026.U0026_OSPE0000025002052
         pattern = (r'^'
@@ -373,11 +383,11 @@ class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
         contract_delivery_term = str(match.group(3))
         contract_delivery_month_code_from = str(match.group(4))
         # contract_delivery_day_of_the_month_from = int(match.group(5))
-        contract_delivery_year_from = int(match.group(6))
+        contract_delivery_year_from = int(match.group(6)) +2000
         # dot = str(match.group(7))
         contract_delivery_month_code_to = str(match.group(8))
         # contract_delivery_day_of_the_month_to = int(match.group(9))
-        contract_delivery_year_to = int(match.group(10))
+        contract_delivery_year_to = int(match.group(10))+2000
         # underscore_char = str(match.group(11))
         # option_contract_block = str(match.group(12))
         option_term = str(match.group(13))
@@ -385,14 +395,17 @@ class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
         option_exercise_style = str(match.group(15))    
         option_raw_strike = str(match.group(16))
         option_strike_decimals = int(match.group(17))
-        option_expiry_month = int(match.group(18))
-        option_expiry_day_truncated = int(match.group(19))
+        # option_expiry_month = int(match.group(18))
+        # option_expiry_day_truncated = int(match.group(19))
         
         self.contract_code = contract_code
         self.contract_type = ICEContractType.from_code(contract_type)
         self.contract_term = ICEContractDeliveryTerm.from_code(contract_delivery_term)
-        self.contract_delivery_period = ICEDeliveryPeriod_Month(year = contract_delivery_year_from,
+        self.contract_delivery_period_from = ICEDeliveryPeriod_Month(year = contract_delivery_year_from,
                                                                 month = ICEMonth.from_code(contract_delivery_month_code_from).calendar_order)
+                                            
+        self.contract_delivery_period_to = ICEDeliveryPeriod_Month(year = contract_delivery_year_to,
+                                                                month = ICEMonth.from_code(contract_delivery_month_code_to).calendar_order)
                                             
             
         self.option_term = ICEOptionTerm.from_code(option_term)
@@ -400,7 +413,9 @@ class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
         self.option_exercise_style = ICEOptionExerciseStyle.from_code(option_exercise_style)
         self.strike_decimals = option_strike_decimals
         self.strike_price = float(option_raw_strike) / 10 ** int(option_strike_decimals)
-        # self.exact_expiry_date = date(day=option_expiry_day_truncated, month=option_expiry_month, year=option_expiry_year)
+        # self.option_expiry_date = date(day=option_expiry_day_truncated, month=option_expiry_month, year=option_expiry_year)
+        
+        super().__init__(row)
         
     # With correct decimals
     def _strike_price_str(self)->str:
@@ -412,26 +427,30 @@ class ICEOptionsData_Unencoded_TruncationIssue(ICEOptionsData_UnencodedABC):
                     f'contract_code: {self.contract_code}\n'
                     f'contract_type: {self.contract_type}\n'
                     f'contract_delivery_term: {self.contract_term}\n'
-                    f'contract_delivery: {self.contract_delivery_period}\n'
+                    f'contract_delivery_from: {self.contract_delivery_period_from}\n'
+                    f'contract_delivery_to: {self.contract_delivery_period_to}\n'
                     f'option_term: {self.option_term}\n'
                     f'option_payoff_style: {self.option_payoff_style}\n'
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
-                    f'exact_expiry_date: <TRUNCATED>\n'
+                    f'option_expiry_date: <TRUNCATED>\n'
                     f'ts_event: {self.ts_event}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'
-                    f'open_price: {self.open_price}\n'
-                    f'high_price: {self.high_price}\n'
-                    f'low_price: {self.low_price}\n'
-                    f'close_price: {self.close_price}\n'
+                    f'open_price: {self.open}\n'
+                    f'high_price: {self.high}\n'
+                    f'low_price: {self.low}\n'
+                    f'close_price: {self.close}\n'
                     f'volume: {self.volume}\n'
                 )
 
 class ICEOptionsData_Undencoded_Month(ICEOptionsData_UnencodedABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
+        self.symbol = row.get('symbol') or ''
+        
+        if len(self.symbol) == 0:
+            raise ValueError('symbol is None')
         
         super().__init__(row)
         
@@ -441,9 +460,9 @@ class ICEOptionsData_Undencoded_Month(ICEOptionsData_UnencodedABC):
 
 class ICEOptionsData_Unencoded_RecordsWithId(ICEOptionsData_UnencodedABC):
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol')
-                
-        if not self.symbol:
+        self.symbol = row.get('symbol') or ''
+        
+        if len(self.symbol) == 0:
             raise ValueError('symbol is None')
         
         pattern = ( 
@@ -472,20 +491,11 @@ class ICEOptionsData_Unencoded_RecordsWithId(ICEOptionsData_UnencodedABC):
                 + f'market_id: {self.market_id}\n'
                 + super().__str__())
 
-
-
-
-
-
-
-
-
-
 ICEOptionsDataUnion = Union[
                             ICEOptionsData_Month, 
                             ICEOptionsData_QSY,
                             ICEOptionsData_Undencoded_Month,
                             ICEOptionsData_Unencoded_RecordsWithId,
-                            ICEOptionsData_Unencoded_TruncationIssue,
+                            ICEOptionsData_Unencoded_QSY_TruncationIssue,
                             ICEOptionsData_Unencoded_Unknown,
                             ]
