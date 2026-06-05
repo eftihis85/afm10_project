@@ -6,7 +6,7 @@ from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, T
 from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
 
 from files import MAIN_DB_FILE_PATH, FUTURES_FILE_PATH
-from futures_data_decode import ICEFuturesData_Month, ICEFuturesData_Month_TAS, ICEFuturesData_Unencoded_MonthSpread_TAS, ICEFuturesData_Unencoded_recordWithId, ICEFuturesDataUnion, ICEFuturesDataABC, ICEFuturesData_Unencoded, ICEFuturesData_QSY, ICEFuturesData_Spread_Month, ICEFuturesData_Spread_QSY
+from ice_data_futures_decode import ICEFuturesData_Month, ICEFuturesData_Month_TAS, ICEFuturesData_Unencoded_MonthSpread_TAS, ICEFuturesData_Unencoded_recordWithId, ICEFuturesDataUnion, ICEFuturesDataABC, ICEFuturesData_Unencoded, ICEFuturesData_QSY, ICEFuturesData_Spread_Month, ICEFuturesData_Spread_QSY
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Create database
@@ -89,24 +89,7 @@ class ICEFuturesDataMonthTASTable(DbTableMixin, TableTemplateEnum):
     @classmethod
     def get_row_data(cls, *args: Any, **kwargs: Any) -> dict[Any, Any]:
         return {}
-    
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# Create table
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-@dynamic_database_connection_closer
-def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
-    init_sql=   (
-                    f'{ICEFuturesDataMonthTable.get_create_table_sql(ICEFuturesDataMonthTable)}'
-                    '\n\n'
-                    f'{ICEFuturesDataMonthTASTable.get_create_table_sql(ICEFuturesDataMonthTASTable)}'
-                )
-    
-    print(init_sql)
-    
-    with sqlite3_connection_provider.connection as conn:
-        conn.executescript(init_sql)
-
+    7
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Parse csv and import to db
@@ -176,16 +159,13 @@ def parse_futures_csv(csv_file_path: Path)-> ParseFuturesCSVRes:
 
 def upload_data_to_db(parse_futures_csv_res: ParseFuturesCSVRes):
         with Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH).connection as conn:
-            query = '''
-                DELETE FROM ice_futures_data_month
-            '''
-            conn.execute(query)
+            query =( 'DROP TABLE IF EXISTS ice_futures_data_month;'
+                    'DROP TABLE IF EXISTS ice_futures_data_month_tas;'
+                    f'{ICEFuturesDataMonthTable.get_create_table_sql()}'
+                    f'{ICEFuturesDataMonthTASTable.get_create_table_sql()}')
             
-            query = '''
-                DELETE FROM ice_futures_data_month_tas
-            '''
-            conn.execute(query)
-            
+            conn.executescript(query)
+
             query = '''
                 INSERT INTO ice_futures_data_month (
                     ts_event,
@@ -206,7 +186,7 @@ def upload_data_to_db(parse_futures_csv_res: ParseFuturesCSVRes):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.ts_event.strftime('%Y-%m-%d'), d.publisher_id,
+                              [(d.ts_event_date_only_str, d.publisher_id,
                                 d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_delivery_term.code,
@@ -233,7 +213,7 @@ def upload_data_to_db(parse_futures_csv_res: ParseFuturesCSVRes):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.ts_event.strftime('%Y-%m-%d'), d.publisher_id,
+                              [(d.ts_event_date_only_str, d.publisher_id,
                                 d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_delivery_term.code,
@@ -244,7 +224,6 @@ def upload_data_to_db(parse_futures_csv_res: ParseFuturesCSVRes):
 
 
 sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH)
-create_table(sqlite3_connection_provider=sqlite3_connection_provider)
 
 res = parse_futures_csv(csv_file_path=FUTURES_FILE_PATH)
 
@@ -254,3 +233,5 @@ if len(res.ice_futures_data_undecoded_list) >0:
     for d in res.ice_futures_data_undecoded_list:
         print(d.symbol)
     raise ValueError('Undecoded unknown list is not empty')
+
+print('Done!')

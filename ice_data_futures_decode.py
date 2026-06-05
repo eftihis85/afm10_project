@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import re
 from typing import Union
+from ice_data_common_decode import IceDataCommon
 from ice_helper.datetime_misc import ICE_ts_event_to_dt
 from ice_helper.types import (  ICEContractDeliveryTerm, 
                                 ICEContractType, 
@@ -18,7 +19,7 @@ from ice_helper.types_period import (
 
 
 
-class ICEFuturesDataABC(ABC):
+class ICEFuturesDataABC(IceDataCommon, ABC):
     @classmethod
     def decode_csv_row(cls, row: dict[str, str])-> ICEFuturesDataUnion:
         try:
@@ -55,21 +56,12 @@ class ICEFuturesDataABC(ABC):
         
     
     def __init__(self, row: dict[str, str]):
-        self.symbol = row.get('symbol') or ''
-        self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
-        self.rtype = row.get('rtype')
-        self.publisher_id = row.get('publisher_id')
-        self.instrument_id = row.get('instrument_id')
-        self.open = row.get('open')
-        self.high = row.get('high')
-        self.low = row.get('low')
-        self.close = row.get('close')
-        self.volume = row.get('volume')
+        super().__init__(row)
            
     @abstractmethod
     def __str__(self) -> str:
         return (    
-                    f'ts_event: {self.ts_event}\n'
+                    f'ts_event: {self.ts_event_date_only_str}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'

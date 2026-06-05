@@ -4,6 +4,7 @@ import re
 from datetime import date, datetime
 from typing import Union
 
+from ice_data_common_decode import IceDataCommon
 from ice_helper.datetime_misc import ICE_ts_event_to_dt
 
 from ice_helper.types import (
@@ -26,7 +27,7 @@ from ice_helper.types_period import (
 
 
 
-class ICEOptionsDataABC(ABC):
+class ICEOptionsDataABC(IceDataCommon, ABC):
     @classmethod
     def decode_csv_row(cls, row: dict[str, str])-> ICEOptionsDataUnion:
         try:
@@ -56,44 +57,15 @@ class ICEOptionsDataABC(ABC):
             return ICEOptionsData_Unencoded_Unknown(row)
                 
     def __init__(self, row: dict[str, str]):
-        def get_int_or_none_from_str_or_none(s:str | None)-> int| None:
-            if s is None:
-                return None
-            try:
-                return int(s)
-            except:
-                return None
-            
-        def get_float_or_none_from_str_or_none(s:str | None)-> float| None:
-            if s is None:
-                return None
-            try:
-                return float(s)
-            except:
-                return None
-        
-        self.symbol = row.get('symbol') or ''
-        
-        if len(self.symbol) == 0:
-            raise ValueError('symbol is None')
-        self.ts_event = ICE_ts_event_to_dt(row.get('ts_event') or '')
-        self.rtype = get_int_or_none_from_str_or_none(s=row.get('rtype'))
-        self.publisher_id = get_int_or_none_from_str_or_none(s=row.get('publisher_id'))
-        self.instrument_id = get_int_or_none_from_str_or_none(s=row.get('instrument_id'))
-        self.volume = get_int_or_none_from_str_or_none(row.get('volume'))
-        
-        
-        self.open = get_float_or_none_from_str_or_none(row.get('open'))
-        self.high = get_float_or_none_from_str_or_none(row.get('high'))
-        self.low = get_float_or_none_from_str_or_none(row.get('low'))
-        self.close = get_float_or_none_from_str_or_none(row.get('close'))
+        super().__init__(row)
+
         
         
            
     @abstractmethod
     def __str__(self) -> str:
         return (    
-                    f'ts_event: {self.ts_event}\n'
+                    f'ts_event: {self.ts_event_date_only_str}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'
@@ -193,7 +165,7 @@ class ICEOptionsData_Month(ICEOptionsDataABC):
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
                     f'option_expiry_date: {self.option_expiry_date}\n'
-                    f'ts_event: {self.ts_event}\n'
+                    f'ts_event: {self.ts_event_date_only_str}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'
@@ -302,7 +274,7 @@ class ICEOptionsData_QSY(ICEOptionsDataABC):
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
                     f'option_expiry_date: {self.option_expiry_date}\n'
-                    f'ts_event: {self.ts_event}\n'
+                    f'ts_event: {self.ts_event_date_only_str}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'
@@ -434,7 +406,7 @@ class ICEOptionsData_Unencoded_QSY_TruncationIssue(ICEOptionsData_UnencodedABC):
                     f'option_exercise_style: {self.option_exercise_style}\n'
                     f'strike_price: {self._strike_price_str()}\n'
                     f'option_expiry_date: <TRUNCATED>\n'
-                    f'ts_event: {self.ts_event}\n'
+                    f'ts_event: {self.ts_event_date_only_str}\n'
                     f'rtype: {self.rtype}\n'
                     f'publisher_id: {self.publisher_id}\n'
                     f'instrument_id: {self.instrument_id}\n'

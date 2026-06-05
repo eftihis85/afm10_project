@@ -6,7 +6,7 @@
 -- SQLBook: Code
 SELECT *  FROM ice_options_data_qsy WHERE contract_term = 'Q' and ts_event = '2026-04-20'
 -- SQLBook: Code
-SELECT * FROM ice_options_data_qsy
+SELECT * FROM ice_futures_data_month
 -- SQLBook: Code
 SELECT * 
 -- SQLBook: Code
@@ -51,46 +51,120 @@ FROM        ice_options_data_month ohlc
             ON ohlc.symbol = day_total.symbol
 
 -- SQLBook: Markup
-### Put / Call pivot
+# Put / Call pivot
+-- SQLBook: Code
+SELECT      o_pvt.*, f.close
+FROM        (
+                SELECT      count(*) 'check',
+                            contract_code,
+                            ts_event, 
+                            contract_delivery_period, 
+                            option_strike_price, 
+                            option_exercise_style 'ex style',
+                            option_term 'opt term',
+                            option_expiry_date, 
+                            sum(CASE option_payoff_style WHEN 'P' THEN close ELSE 0 END) put_price,
+                            sum(CASE option_payoff_style WHEN 'C' THEN close ELSE 0 END) call_price
+                FROM        (
+                                SELECT      ohlc.*, ohlc.close * (ohlc.volume / day_total.volume) as wavg_price
+                                FROM        ice_options_data_month ohlc
+                                                INNER JOIN
+                                            (
+                                                SELECT      symbol, sum(volume) volume
+                                                FROM        ice_options_data_month 
+                                                WHERE       close != ''
+                                                GROUP BY    symbol
+                                            ) day_total
+                                            ON ohlc.symbol = day_total.symbol
+                            ) 
+                GROUP BY    contract_code,
+                            ts_event, 
+                            contract_delivery_period, 
+                            option_strike_price, 
+                            option_exercise_style,
+                            option_term,
+                            option_expiry_date
+                ORDER BY    contract_code,
+                            ts_event, 
+                            contract_delivery_period, 
+                            option_strike_price, 
+                            option_exercise_style,
+                            option_term,
+                            option_expiry_date 
+            ) o_pvt
+            LEFT JOIN
+            (
+                SELECT      count(*) 'check',
+                            contract_code,
+                            DATE(ts_event) ts_event, 
+                            contract_delivery_period, 
+                            sum(close) close
+                FROM        (
+                                SELECT      ohlc.*, ohlc.close * (ohlc.volume / day_total.volume) as wavg_price
+                                FROM        (
+                                                SELECT  *
+                                                FROM    ice_futures_data_month 
+                                                WHERE   close != ''
+                                            ) ohlc
+                                                INNER JOIN
+                                            (
+                                                SELECT      symbol, sum(volume) volume
+                                                FROM        ice_futures_data_month 
+                                                WHERE       close is not null
+                                                GROUP BY    symbol
+                                            ) day_total
+                                            ON ohlc.symbol = day_total.symbol
+                                
+                            ) 
+                GROUP BY    contract_code,
+                            ts_event, 
+                            contract_delivery_period
+                ORDER BY    contract_code,
+                            ts_event, 
+                            contract_delivery_period
+            ) f
+            ON      o_pvt.ts_event = f.ts_event
+            AND     o_pvt.contract_delivery_period = f.contract_delivery_period
+-- SQLBook: Code
+select * from ice_futures_data_month where close is null
+-- SQLBook: Code
+
+
+SELECT * FROM ice_futures_data_month WHERE ts_event = '2021-01-04' and  close != ''
+
+
+
 -- SQLBook: Code
 SELECT      count(*) 'check',
             contract_code,
-            DATE(ts_event) date, 
+            DATE(ts_event) ts_event, 
             contract_delivery_period, 
-            option_strike_price, 
-            option_exercise_style 'ex style',
-            option_term 'opt term',
-            option_expiry_date, 
-            sum(CASE option_payoff_style WHEN 'P' THEN close ELSE 0 END) put_price,
-            sum(CASE option_payoff_style WHEN 'C' THEN close ELSE 0 END) call_price
+            sum(close) close
 FROM        (
                 SELECT      ohlc.*, ohlc.close * (ohlc.volume / day_total.volume) as wavg_price
-                FROM        ice_options_data_month ohlc
+                FROM        (
+                                SELECT  *
+                                FROM    ice_futures_data_month 
+                                WHERE   close != ''
+                            ) ohlc
                                 INNER JOIN
                             (
                                 SELECT      symbol, sum(volume) volume
-                                FROM        ice_options_data_month 
-                                WHERE       close is not null
+                                FROM        ice_futures_data_month 
+                                WHERE       close != ''
                                 GROUP BY    symbol
                             ) day_total
                             ON ohlc.symbol = day_total.symbol
+                
             ) 
 GROUP BY    contract_code,
             ts_event, 
-            contract_delivery_period, 
-            option_strike_price, 
-            option_exercise_style,
-            option_term,
-            option_expiry_date
+            contract_delivery_period
 ORDER BY    contract_code,
             ts_event, 
-            contract_delivery_period, 
-            option_strike_price, 
-            option_exercise_style,
-            option_term,
-            option_expiry_date 
+            contract_delivery_period
 -- SQLBook: Markup
-### Correction truncation issue
+# Correction truncation issue
 -- SQLBook: Code
 -- 
 -- CHECK IF DOUBLE EXPIRY DATE FOR ONE DELIVERY PERIOD 

@@ -4,7 +4,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from options_data_decode import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_QSY_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
+from ice_data_options_decode import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_QSY_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
 from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum
 from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
 
@@ -151,26 +151,6 @@ class ICEOptionsDataQSYTruncationIssueTable(DbTableMixin, TableTemplateEnum):
     def get_row_data(cls, *args: Any, **kwargs: Any) -> dict[Any, Any]:
         return {}
 
-    
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# Create table
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-init_sql=f'''{ICEOptionsDataMonthTable.get_create_table_sql(ICEOptionsDataMonthTable)}
-
-{ICEOptionsDataQSYTable.get_create_table_sql(ICEOptionsDataQSYTable)}
-
-{ICEOptionsDataQSYTruncationIssueTable.get_create_table_sql(ICEOptionsDataQSYTruncationIssueTable)}
-'''
-@dynamic_database_connection_closer
-def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
-    with sqlite3_connection_provider.connection as conn:
-        conn.executescript(init_sql)
-
-
-sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH)
-create_table(sqlite3_connection_provider=sqlite3_connection_provider)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Parse csv and import to db
@@ -235,6 +215,15 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                       ice_options_data_qsy_list: list[ICEOptionsData_QSY], 
                       ice_options_data_qsy_truncation_issue_list: list[ICEOptionsData_Unencoded_QSY_TruncationIssue]):
         with Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH).connection as conn:
+    
+            query = ('DROP TABLE IF EXISTS ice_options_data_month;'
+                'DROP TABLE IF EXISTS ice_options_data_qsy;'
+                'DROP TABLE IF EXISTS ice_options_data_qsy_truncation_issue;'
+                f'{ICEOptionsDataMonthTable.get_create_table_sql()}'
+                f'{ICEOptionsDataQSYTable.get_create_table_sql()}'
+                f'{ICEOptionsDataQSYTruncationIssueTable.get_create_table_sql()}')
+            conn.executescript(query)
+            
             query = '''
                 INSERT INTO ice_options_data_month (
                     ts_event,
@@ -261,7 +250,7 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.ts_event.strftime('%Y-%m-%d'), d.publisher_id,
+                              [(d.ts_event_date_only_str, d.publisher_id,
                                 d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_term.code,
@@ -297,7 +286,7 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.ts_event.strftime('%Y-%m-%d'), d.publisher_id,
+                              [(d.ts_event_date_only_str, d.publisher_id,
                                 d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_term.code,
@@ -334,7 +323,7 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
-                              [(d.ts_event.strftime('%Y-%m-%d'), d.publisher_id,
+                              [(d.ts_event_date_only_str, d.publisher_id,
                                 d.instrument_id, d.symbol, d.rtype, d.open, d.high,
                                 d.low, d.close, d.volume,
                                 d.contract_code, d.contract_type.code, d.contract_term.code,
@@ -353,3 +342,5 @@ upload_data_to_db(ice_options_data_month_list=res.ice_options_data_month_list,
 
 if len(res.ice_options_data_undecoded_unknown_list) >0:
     raise ValueError('Undecoded unknown list is not empty')
+
+print('Done!')

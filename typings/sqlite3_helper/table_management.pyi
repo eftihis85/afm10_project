@@ -41,7 +41,7 @@ class TableTemplateEnum(Enum):
 
 class DbTableMixin:
     @classmethod
-    def get_create_table_sql(cls, table_enum: type[TableTemplateEnum], if_not_exists: bool = ...) -> str:
+    def get_create_table_sql(cls, if_not_exists: bool = ...) -> str:
         ...
     
 
