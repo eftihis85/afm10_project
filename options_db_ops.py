@@ -2,28 +2,19 @@
 
 import csv
 from dataclasses import dataclass
-import sqlite3
 from pathlib import Path
-from typing import Final, Any
-from data_decode_options import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_QSY_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
+from typing import Any
+from options_data_decode import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_QSY_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
 from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum
 from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
 
-__DATA_FOLDER:Final = 'data'
-__OPTIONS_FILE_NAME = 'TFO · Dutch TTF Natural Gas Options - ohlcv-1d - 2026-04-20 00:00 2026-05-20 16:00.csv'
-__FUTURES_FILE_NAME = 'TFM · Dutch TTF Natural Gas Futures - ohlcv-1d - 2021-01-01 00:00 2026-05-21 00:00.csv'
-__MAIN_DB_FILENAME = 'database.db'
-__OPTIONS_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __OPTIONS_FILE_NAME 
-__FUTURES_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __FUTURES_FILE_NAME 
-__MAIN_DB_FILE_PATH:Final = Path(__file__).resolve().parent / __DATA_FOLDER / __MAIN_DB_FILENAME 
-
-
+from files import MAIN_DB_FILE_PATH, OPTIONS_FILE_PATH
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Create database
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-create_database_pass_if_exists(db_filepath=__MAIN_DB_FILE_PATH)
+create_database_pass_if_exists(db_filepath=MAIN_DB_FILE_PATH)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Table definition
@@ -178,7 +169,7 @@ def create_table(sqlite3_connection_provider: Sqlite3ConnectionProvider):
         conn.executescript(init_sql)
 
 
-sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH)
+sqlite3_connection_provider = Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH)
 create_table(sqlite3_connection_provider=sqlite3_connection_provider)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -238,12 +229,12 @@ def parse_options_csv(csv_file_path: Path)-> parse_options_csv_res:
                                      ice_options_data_undecoded_unknown_list=ice_options_data_undecoded_unknown_list)
     
     
-res = parse_options_csv(csv_file_path=__OPTIONS_FILE_PATH)
+res = parse_options_csv(csv_file_path=OPTIONS_FILE_PATH)
 
 def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month], 
                       ice_options_data_qsy_list: list[ICEOptionsData_QSY], 
                       ice_options_data_qsy_truncation_issue_list: list[ICEOptionsData_Unencoded_QSY_TruncationIssue]):
-        with Sqlite3ConnectionProvider(db_path=__MAIN_DB_FILE_PATH).connection as conn:
+        with Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH).connection as conn:
             query = '''
                 INSERT INTO ice_options_data_month (
                     ts_event,
