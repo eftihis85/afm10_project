@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from ice_data_options_decode import (ICEOptionsData_QSY, ICEOptionsData_Unencoded_QSY_TruncationIssue, ICEOptionsData_Unencoded_Unknown, ICEOptionsDataUnion, ICEOptionsDataABC, ICEOptionsData_Month, ICEOptionsData_Undencoded_Month, ICEOptionsData_Unencoded_RecordsWithId)
-from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum
-from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
+from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum 
+from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, Sqlite3ConnectionProvider 
+
 
 from files import MAIN_DB_FILE_PATH, OPTIONS_FILE_PATH
 
@@ -36,10 +37,10 @@ class ICEOptionsDataMonthTable(DbTableMixin, TableTemplateEnum):
     # The record type. Each schema corresponds with a single rtype value
     rtype = DbField(datatype=DbDatatype.INT) 
     
-    open = DbField(datatype=DbDatatype.REAL)
-    high = DbField(datatype=DbDatatype.REAL)
-    low = DbField(datatype=DbDatatype.REAL)
-    close = DbField(datatype=DbDatatype.REAL)
+    open = DbField(datatype=DbDatatype.REAL, nullable=True)
+    high = DbField(datatype=DbDatatype.REAL, nullable=True)
+    low = DbField(datatype=DbDatatype.REAL, nullable=True)
+    close = DbField(datatype=DbDatatype.REAL, nullable=True)
     volume = DbField(datatype=DbDatatype.INT)
     
     contract_code = DbField(datatype=DbDatatype.TEXT)
@@ -79,10 +80,10 @@ class ICEOptionsDataQSYTable(DbTableMixin, TableTemplateEnum):
     # The record type. Each schema corresponds with a single rtype value
     rtype = DbField(datatype=DbDatatype.INT) 
     
-    open = DbField(datatype=DbDatatype.REAL)
-    high = DbField(datatype=DbDatatype.REAL)
-    low = DbField(datatype=DbDatatype.REAL)
-    close = DbField(datatype=DbDatatype.REAL)
+    open = DbField(datatype=DbDatatype.REAL, nullable=True)
+    high = DbField(datatype=DbDatatype.REAL, nullable=True)
+    low = DbField(datatype=DbDatatype.REAL, nullable=True)
+    close = DbField(datatype=DbDatatype.REAL, nullable=True)
     volume = DbField(datatype=DbDatatype.INT)
     
     contract_code = DbField(datatype=DbDatatype.TEXT)
@@ -106,7 +107,8 @@ class ICEOptionsDataQSYTable(DbTableMixin, TableTemplateEnum):
     def get_row_data(cls, *args: Any, **kwargs: Any) -> dict[Any, Any]:
         return {}
 
-    
+
+
 class ICEOptionsDataQSYTruncationIssueTable(DbTableMixin, TableTemplateEnum):
     
     # The event timestamp as the number of nanoseconds since the UNIX epoch.
@@ -124,10 +126,10 @@ class ICEOptionsDataQSYTruncationIssueTable(DbTableMixin, TableTemplateEnum):
     # The record type. Each schema corresponds with a single rtype value
     rtype = DbField(datatype=DbDatatype.INT) 
     
-    open = DbField(datatype=DbDatatype.REAL)
-    high = DbField(datatype=DbDatatype.REAL)
-    low = DbField(datatype=DbDatatype.REAL)
-    close = DbField(datatype=DbDatatype.REAL)
+    open = DbField(datatype=DbDatatype.REAL, nullable=True)
+    high = DbField(datatype=DbDatatype.REAL, nullable=True)
+    low = DbField(datatype=DbDatatype.REAL, nullable=True)
+    close = DbField(datatype=DbDatatype.REAL, nullable=True)
     volume = DbField(datatype=DbDatatype.INT)
     
     contract_code = DbField(datatype=DbDatatype.TEXT)
@@ -216,13 +218,16 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                       ice_options_data_qsy_truncation_issue_list: list[ICEOptionsData_Unencoded_QSY_TruncationIssue]):
         with Sqlite3ConnectionProvider(db_path=MAIN_DB_FILE_PATH).connection as conn:
     
-            query = ('DROP TABLE IF EXISTS ice_options_data_month;'
-                'DROP TABLE IF EXISTS ice_options_data_qsy;'
-                'DROP TABLE IF EXISTS ice_options_data_qsy_truncation_issue;'
-                f'{ICEOptionsDataMonthTable.get_create_table_sql()}'
-                f'{ICEOptionsDataQSYTable.get_create_table_sql()}'
-                f'{ICEOptionsDataQSYTruncationIssueTable.get_create_table_sql()}')
+            query = (
+                f'{ICEOptionsDataMonthTable.get_drop_table_sql()}\n\n'
+                f'{ICEOptionsDataQSYTable.get_drop_table_sql()}\n\n'
+                f'{ICEOptionsDataQSYTruncationIssueTable.get_drop_table_sql()}\n\n'
+                f'{ICEOptionsDataMonthTable.get_create_table_sql()}\n\n'
+                f'{ICEOptionsDataQSYTable.get_create_table_sql()}\n\n'
+                f'{ICEOptionsDataQSYTruncationIssueTable.get_create_table_sql()}\n\n')
             conn.executescript(query)
+            
+            print(query)
             
             query = '''
                 INSERT INTO ice_options_data_month (
@@ -246,8 +251,7 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                     option_strike_decimals,
                     option_strike_price,
                     option_expiry_date
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
                               [(d.ts_event_date_only_str, d.publisher_id,
@@ -282,8 +286,7 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                     option_strike_decimals,
                     option_strike_price,
                     option_expiry_date
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             conn.executemany(query,
                               [(d.ts_event_date_only_str, d.publisher_id,
@@ -333,6 +336,63 @@ def upload_data_to_db(ice_options_data_month_list: list[ICEOptionsData_Month],
                                 # d.option_expiry_date.strftime('%Y-%m-%d')
                                 )
                                  for d in ice_options_data_qsy_truncation_issue_list])
+
+            query = '''
+                INSERT INTO ice_options_data_qsy (
+                    ts_event,
+                    publisher_id,
+                    instrument_id,
+                    symbol,
+                    rtype,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume,
+                    contract_code,
+                    contract_type,
+                    contract_term,
+                    contract_delivery_period_from,
+                    contract_delivery_period_to,
+                    option_term,
+                    option_payoff_style,
+                    option_exercise_style,
+                    option_strike_decimals,
+                    option_strike_price,
+                    option_expiry_date
+                )
+                SELECT      ts_event,
+                    issue.publisher_id,
+                    issue.instrument_id,
+                    issue.symbol,
+                    issue.rtype,
+                    issue.open,
+                    issue.high,
+                    issue.low,
+                    issue.close,
+                    issue.volume,
+                    issue.contract_code,
+                    issue.contract_type,
+                    issue.contract_term,
+                    issue.contract_delivery_period_from,
+                    issue.contract_delivery_period_to,
+                    issue.option_term,
+                    issue.option_payoff_style,
+                    issue.option_exercise_style,
+                    issue.option_strike_decimals,
+                    issue.option_strike_price,
+                    del.option_expiry_date
+                FROM        ice_options_data_qsy_truncation_issue issue
+                            INNER JOIN
+                            ( 
+                                SELECT     DISTINCT contract_delivery_period, option_expiry_date 
+                                FROM        ice_options_data_month
+                            ) del
+                            ON  issue.contract_delivery_period_from = del.contract_delivery_period
+                                AND issue.contract_delivery_period_to = del.contract_delivery_period;
+            '''
+            conn.execute(query)
+
 
 
 upload_data_to_db(ice_options_data_month_list=res.ice_options_data_month_list,

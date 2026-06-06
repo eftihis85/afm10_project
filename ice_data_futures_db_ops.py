@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from sqlite3_helper.table_management import DbDatatype, DbField, DbTableMixin, TableTemplateEnum
-from sqlite3_helper.sqlite3_helper import create_database_pass_if_exists, dynamic_database_connection_closer, Sqlite3ConnectionProvider
+from sqlite3_helper.sqlite3_helper import (create_database_pass_if_exists, 
+                                           Sqlite3ConnectionProvider)
 
 from files import MAIN_DB_FILE_PATH, FUTURES_FILE_PATH
 from ice_data_futures_decode import ICEFuturesData_Month, ICEFuturesData_Month_TAS, ICEFuturesData_Unencoded_MonthSpread_TAS, ICEFuturesData_Unencoded_recordWithId, ICEFuturesDataUnion, ICEFuturesDataABC, ICEFuturesData_Unencoded, ICEFuturesData_QSY, ICEFuturesData_Spread_Month, ICEFuturesData_Spread_QSY
@@ -40,10 +41,10 @@ class ICEFuturesDataMonthTable(DbTableMixin, TableTemplateEnum):
     contract_delivery_term = DbField(datatype=DbDatatype.TEXT)
     contract_delivery_period = DbField(datatype=DbDatatype.TEXT)
     
-    open = DbField(datatype=DbDatatype.REAL)
-    high = DbField(datatype=DbDatatype.REAL)
-    low = DbField(datatype=DbDatatype.REAL)
-    close = DbField(datatype=DbDatatype.REAL)
+    open = DbField(datatype=DbDatatype.REAL, nullable=True)
+    high = DbField(datatype=DbDatatype.REAL, nullable=True)
+    low = DbField(datatype=DbDatatype.REAL, nullable=True)
+    close = DbField(datatype=DbDatatype.REAL, nullable=True)
     volume = DbField(datatype=DbDatatype.INT)
 
     @classmethod
@@ -76,10 +77,10 @@ class ICEFuturesDataMonthTASTable(DbTableMixin, TableTemplateEnum):
     contract_delivery_term = DbField(datatype=DbDatatype.TEXT)
     contract_delivery_period = DbField(datatype=DbDatatype.TEXT)
     
-    open = DbField(datatype=DbDatatype.REAL)
-    high = DbField(datatype=DbDatatype.REAL)
-    low = DbField(datatype=DbDatatype.REAL)
-    close = DbField(datatype=DbDatatype.REAL)
+    open = DbField(datatype=DbDatatype.REAL, nullable=True)
+    high = DbField(datatype=DbDatatype.REAL, nullable=True)
+    low = DbField(datatype=DbDatatype.REAL, nullable=True)
+    close = DbField(datatype=DbDatatype.REAL, nullable=True)
     volume = DbField(datatype=DbDatatype.INT)
 
     @classmethod
@@ -89,7 +90,7 @@ class ICEFuturesDataMonthTASTable(DbTableMixin, TableTemplateEnum):
     @classmethod
     def get_row_data(cls, *args: Any, **kwargs: Any) -> dict[Any, Any]:
         return {}
-    7
+    
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Parse csv and import to db

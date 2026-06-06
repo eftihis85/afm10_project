@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 import re
 from typing import Union
 from ice_data_common_decode import IceDataCommon
-from ice_helper.datetime_misc import ICE_ts_event_to_dt
 from ice_helper.types import (  ICEContractDeliveryTerm, 
                                 ICEContractType, 
                                 ICEMonth, 

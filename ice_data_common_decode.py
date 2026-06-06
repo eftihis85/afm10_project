@@ -20,13 +20,13 @@ class IceDataCommon(ABC):
             except:
                 return 0
             
-        def get_float(s:str | None)-> float:
+        def get_float_or_none(s:str | None)-> float | None:
             if s is None:
-                return 0
+                return None
             try:
                 return float(s)
             except:
-                return 0
+                return None
 
         self.symbol = row.get('symbol') or ''
         
@@ -39,7 +39,7 @@ class IceDataCommon(ABC):
         self.volume = get_int_or_zero(row.get('volume'))
         
         
-        self.open:float = get_float(row.get('open'))
-        self.high:float = get_float(row.get('high'))
-        self.low:float = get_float(row.get('low'))
-        self.close:float = get_float(row.get('close'))
+        self.open:float | None = get_float_or_none(row.get('open'))
+        self.high:float | None = get_float_or_none(row.get('high'))
+        self.low:float | None = get_float_or_none(row.get('low'))
+        self.close:float | None = get_float_or_none(row.get('close'))

@@ -1,14 +1,81 @@
 -- SQLBook: Code
--- DROP TABLE IF EXISTS ice_options_data_month; 
--- DROP TABLE IF EXISTS ice_options_data_qsy;
--- DROP TABLE IF EXISTS ice_options_data_qsy_truncation_issue;
-
+SELECT  distinct contract_delivery_period, option_expiry_date
+FROM    ice_options_data_month 
+WHERE close is not null
+ORDER BY contract_delivery_period
 -- SQLBook: Code
-SELECT *  FROM ice_options_data_qsy WHERE contract_term = 'Q' and ts_event = '2026-04-20'
+SELECT  distinct contract_delivery_period, option_expiry_date, option_term, option_payoff_style
+FROM    ice_options_data_month
+WHERE close is not null
+ORDER BY contract_delivery_period
 -- SQLBook: Code
-SELECT * FROM ice_futures_data_month
+SELECT  distinct contract_delivery_period_from, option_expiry_date, option_term, option_payoff_style
+FROM    ice_options_data_qsy
+WHERE close is not null
+ORDER BY contract_delivery_period_from
 -- SQLBook: Code
-SELECT * 
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+-- RAW DATES PRODUCTION
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+WITH RECURSIVE generate_dates(date_value) AS (
+    -- 1. Establish the starting date
+    SELECT '2026-05-25'
+    UNION ALL
+    -- 2. Increment the date by 1 day at a time
+    SELECT date(date_value, '+1 day')
+    FROM generate_dates
+    -- 3. Set the end condition (e.g., generate 10 days total)
+    WHERE date_value < date('2026-05-25', '+10 days')
+)
+SELECT      dates.date_value, 
+            expiry.option_expiry_date, 
+            CASE    WHEN dates.date_value >= expiry.option_expiry_date 
+                        THEN DATE(dates.date_value, 'start of month', '+1 month') 
+                    ELSE  DATE(dates.date_value, 'start of month') 
+            END font_month 
+FROM        generate_dates dates
+            LEFT JOIN 
+            (        
+                SELECT      DATE(contract_delivery_period || '-01', '-1 month') contract_delivery_month, max( option_expiry_date) option_expiry_date, count(*) 
+                FROM        ( SELECT     DISTINCT contract_delivery_period, option_expiry_date 
+                FROM        ice_options_data_month)
+                GROUP BY    contract_delivery_period
+            ) expiry
+            ON expiry.contract_delivery_month = DATE(dates.date_value, 'start of month')
+-- SQLBook: Code
+WITH RECURSIVE month_series(month_date, month_counter) AS (
+    -- 1. Anchor member: Convert 'YYYY-MM' string to a valid date and set counter to 1
+    SELECT 
+        date('2017-08-01') AS month_date,
+        1 AS month_counter
+        
+    UNION ALL
+    -- 2. Recursive member: Increment the month by 1 and increment the counter
+    SELECT 
+        date(month_date, '+1 month'),
+        month_counter + 1
+    FROM 
+        month_series
+    WHERE 
+        month_counter < 180 -- 3. Termination condition: Stop after 24 rows
+)
+-- 4. Final selection: Convert the date back to the 'YYYY-MM' display format
+SELECT 
+    month_date AS full_date_object
+FROM 
+    month_series;
+-- SQLBook: Code
+WITH RECURSIVE generate_dates(date_value) AS (
+    -- 1. Establish the starting date
+    SELECT '2026-04-20'
+    UNION ALL
+    -- 2. Increment the date by 1 day at a time
+    SELECT date(date_value, '+1 day')
+    FROM generate_dates
+    -- 3. Set the end condition (e.g., generate 10 days total)
+    WHERE date_value < date('2026-04-20', '+20 days')
+)
+SELECT date_value, date(date_value, 'start of month') current_cal_month  FROM generate_dates
 -- SQLBook: Code
 SELECT * FROM ice_options_data_month
 where (ts_event, instrument_id) IN (
@@ -60,8 +127,8 @@ FROM        (
                             ts_event, 
                             contract_delivery_period, 
                             option_strike_price, 
-                            option_exercise_style 'ex style',
-                            option_term 'opt term',
+                            option_exercise_style ex_style,
+                            option_term opt_term,
                             option_expiry_date, 
                             sum(CASE option_payoff_style WHEN 'P' THEN close ELSE 0 END) put_price,
                             sum(CASE option_payoff_style WHEN 'C' THEN close ELSE 0 END) call_price
@@ -72,7 +139,7 @@ FROM        (
                                             (
                                                 SELECT      symbol, sum(volume) volume
                                                 FROM        ice_options_data_month 
-                                                WHERE       close != ''
+                                                WHERE       close is not NULL
                                                 GROUP BY    symbol
                                             ) day_total
                                             ON ohlc.symbol = day_total.symbol
@@ -104,7 +171,7 @@ FROM        (
                                 FROM        (
                                                 SELECT  *
                                                 FROM    ice_futures_data_month 
-                                                WHERE   close != ''
+                                                WHERE   close is not NULL
                                             ) ohlc
                                                 INNER JOIN
                                             (
@@ -128,13 +195,6 @@ FROM        (
 -- SQLBook: Code
 select * from ice_futures_data_month where close is null
 -- SQLBook: Code
-
-
-SELECT * FROM ice_futures_data_month WHERE ts_event = '2021-01-04' and  close != ''
-
-
-
--- SQLBook: Code
 SELECT      count(*) 'check',
             contract_code,
             DATE(ts_event) ts_event, 
@@ -145,13 +205,13 @@ FROM        (
                 FROM        (
                                 SELECT  *
                                 FROM    ice_futures_data_month 
-                                WHERE   close != ''
+                                WHERE   close is not NULL
                             ) ohlc
                                 INNER JOIN
                             (
                                 SELECT      symbol, sum(volume) volume
                                 FROM        ice_futures_data_month 
-                                WHERE       close != ''
+                                WHERE       close is not NULL
                                 GROUP BY    symbol
                             ) day_total
                             ON ohlc.symbol = day_total.symbol
@@ -193,54 +253,54 @@ ORDER BY contract_delivery_period_from
 -- 
 -- INSERT TRUNCATED
 -- 
--- INSERT INTO ice_options_data_qsy (
---     ts_event,
---     publisher_id,
---     instrument_id,
---     symbol,
---     rtype,
---     open,
---     high,
---     low,
---     close,
---     volume,
---     contract_code,
---     contract_type,
---     contract_term,
---     contract_delivery_period_from,
---     contract_delivery_period_to,
---     option_term,
---     option_payoff_style,
---     option_exercise_style,
---     option_strike_decimals,
---     option_strike_price,
---     option_expiry_date
--- )
--- SELECT      ts_event,
---     issue.publisher_id,
---     issue.instrument_id,
---     issue.symbol,
---     issue.rtype,
---     issue.open,
---     issue.high,
---     issue.low,
---     issue.close,
---     issue.volume,
---     issue.contract_code,
---     issue.contract_type,
---     issue.contract_term,
---     issue.contract_delivery_period_from,
---     issue.contract_delivery_period_to,
---     issue.option_term,
---     issue.option_payoff_style,
---     issue.option_exercise_style,
---     issue.option_strike_decimals,
---     issue.option_strike_price,
---     del.option_expiry_date
--- FROM        ice_options_data_qsy_truncation_issue issue
---             INNER JOIN
---             ( 
---                 SELECT     DISTINCT contract_delivery_period, option_expiry_date 
---                 FROM        ice_options_data_month
---             ) del
---             ON  issue.contract_delivery_period_from = del.contract_delivery_period
+INSERT INTO ice_options_data_qsy (
+    ts_event,
+    publisher_id,
+    instrument_id,
+    symbol,
+    rtype,
+    open,
+    high,
+    low,
+    close,
+    volume,
+    contract_code,
+    contract_type,
+    contract_term,
+    contract_delivery_period_from,
+    contract_delivery_period_to,
+    option_term,
+    option_payoff_style,
+    option_exercise_style,
+    option_strike_decimals,
+    option_strike_price,
+    option_expiry_date
+)
+SELECT      ts_event,
+    issue.publisher_id,
+    issue.instrument_id,
+    issue.symbol,
+    issue.rtype,
+    issue.open,
+    issue.high,
+    issue.low,
+    issue.close,
+    issue.volume,
+    issue.contract_code,
+    issue.contract_type,
+    issue.contract_term,
+    issue.contract_delivery_period_from,
+    issue.contract_delivery_period_to,
+    issue.option_term,
+    issue.option_payoff_style,
+    issue.option_exercise_style,
+    issue.option_strike_decimals,
+    issue.option_strike_price,
+    del.option_expiry_date
+FROM        ice_options_data_qsy_truncation_issue issue
+            INNER JOIN
+            ( 
+                SELECT     DISTINCT contract_delivery_period, option_expiry_date 
+                FROM        ice_options_data_month
+            ) del
+            ON  issue.contract_delivery_period_from = del.contract_delivery_period
