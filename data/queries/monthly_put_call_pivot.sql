@@ -1,4 +1,4 @@
-SELECT      o_pvt.*, f.close_of_future
+SELECT      o_pvt.*, f.close_of_future, r.euro_short_term_rate
 FROM        (
                 SELECT      count(*) 'check',
                             contract_code,
@@ -9,7 +9,9 @@ FROM        (
                             option_term opt_term,
                             option_expiry_date, 
                             sum(CASE option_payoff_style WHEN 'P' THEN wavg_price ELSE 0 END) put_price,
-                            sum(CASE option_payoff_style WHEN 'C' THEN wavg_price ELSE 0 END) call_price
+                            sum(CASE option_payoff_style WHEN 'C' THEN wavg_price ELSE 0 END) call_price,
+                            sum(CASE option_payoff_style WHEN 'P' THEN volume ELSE 0 END) put_volume,
+                            sum(CASE option_payoff_style WHEN 'C' THEN volume ELSE 0 END) call_volume
                 FROM        (
                                 SELECT      ohlc.contract_code,
                                             ohlc.ts_event, 
@@ -19,6 +21,7 @@ FROM        (
                                             ohlc.option_term,
                                             ohlc.option_expiry_date, 
                                             ohlc.option_payoff_style,
+                                            ohlc.volume,
                                            -- ohlc.*, 
                                            -- CAST(ohlc.volume AS REAL) / CAST( day_total.volume AS REAL) as weight, 
                                             ohlc.close * CAST(ohlc.volume AS REAL) / CAST( day_total.volume AS REAL)  as wavg_price
@@ -27,7 +30,7 @@ FROM        (
                                                 FROM    ice_options_data_month 
                                                 WHERE   close is not NULL
                                             ) ohlc
-                                                INNER JOIN
+                                            INNER JOIN
                                             (
                                                 SELECT      ts_event, symbol, sum(volume) volume
                                                 FROM        ice_options_data_month 
@@ -71,7 +74,7 @@ FROM        (
                                                 FROM    ice_futures_data_month 
                                                 WHERE   close is not NULL
                                             ) ohlc
-                                                INNER JOIN
+                                            INNER JOIN
                                             (
                                                 SELECT      ts_event, symbol, sum(volume) volume
                                                 FROM        ice_futures_data_month 
@@ -90,3 +93,7 @@ FROM        (
             ) f
             ON      o_pvt.ts_event = f.ts_event
             AND     o_pvt.contract_delivery_period = f.contract_delivery_period
+            LEFT JOIN
+            euro_short_term_rates r
+            ON      o_pvt.ts_event = r."date"
+            
