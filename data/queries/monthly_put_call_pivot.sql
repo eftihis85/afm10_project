@@ -1,3 +1,5 @@
+-- DROP TABLE IF EXISTS monthly_put_call_pivot;
+-- CREATE TABLE IF NOT EXISTS monthly_put_call_pivot AS
 SELECT      o_pvt.*, f.close_of_future, r.euro_short_term_rate
 FROM        (
                 SELECT      count(*) 'check',

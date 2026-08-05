@@ -7,3 +7,9 @@ FUTURES_FILE_PATH:Final = Path(__file__).resolve().parent / 'data' / 'TFM · Dut
 MAIN_DB_FILE_PATH:Final = Path(__file__).resolve().parent / 'data' / 'database.db' 
 
 MONTH_PUT_CALL_PARITY:Final =  Path(__file__).resolve().parent / 'data' / 'queries' / 'monthly_put_call_pivot.sql'
+MONTH_PUT_CALL_IV_RESULTS:Final =  Path(__file__).resolve().parent / 'data' / 'queries' / 'monthly_put_call_iv_results.sql'
+MONTH_PUT_CALL_SVI_RESULTS:Final =  Path(__file__).resolve().parent / 'data' / 'queries' / 'monthly_put_call_svi_results.sql'
+MONTH_PUT_CALL_SSVI_RESULTS:Final =  Path(__file__).resolve().parent / 'data' / 'queries' / 'monthly_put_call_ssvi_results.sql'
+MONTH_PUT_CALL_SSVI_DENSE_GRID:Final =  Path(__file__).resolve().parent / 'data' / 'queries' / 'monthly_put_call_ssvi_dense_grid.sql'
+
+EXPORTS_PATH:Final =  Path(__file__).resolve().parent / 'exports'

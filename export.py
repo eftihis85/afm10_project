@@ -1,7 +1,13 @@
 import csv
 from pathlib import Path
 import sqlite3
-from files import MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY
+from files import (
+                  EXPORTS_PATH,MAIN_DB_FILE_PATH, 
+                   MONTH_PUT_CALL_PARITY, 
+                   MONTH_PUT_CALL_IV_RESULTS, 
+                   MONTH_PUT_CALL_SVI_RESULTS, 
+                   MONTH_PUT_CALL_SSVI_RESULTS, 
+                   MONTH_PUT_CALL_SSVI_DENSE_GRID)
 
 def export_query_to_csv(db_path:Path, sql_file_path:Path, csv_file_name:str):
     try:
@@ -22,7 +28,7 @@ def export_query_to_csv(db_path:Path, sql_file_path:Path, csv_file_name:str):
 
         # 5. Write results to CSV
         with open(
-            csv_file_name, 'w', newline='', encoding='utf-8'
+            EXPORTS_PATH / csv_file_name, 'w', newline='', encoding='utf-8'
         ) as csv_file:
             writer = csv.writer(csv_file)
 
@@ -47,4 +53,4 @@ def export_query_to_csv(db_path:Path, sql_file_path:Path, csv_file_name:str):
 
 
 # --- Example Usage ---
-export_query_to_csv(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, 'output_results.csv')
+export_query_to_csv(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_SSVI_RESULTS, 'output_results.csv')
