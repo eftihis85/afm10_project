@@ -1,5 +1,5 @@
 -- SQLBook: Code
-SELECT * from ice_options_data_month WHERE contract_delivery_period = '2026-07' and ts_event = '2026-04-20'
+SELECT max(ts_event) from ice_options_data_month 
 -- SQLBook: Code
 SELECT * from euro_short_term_rates 
 -- SQLBook: Code

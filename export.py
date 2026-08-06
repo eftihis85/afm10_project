@@ -53,4 +53,4 @@ def export_query_to_csv(db_path:Path, sql_file_path:Path, csv_file_name:str):
 
 
 # --- Example Usage ---
-export_query_to_csv(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_SSVI_RESULTS, 'output_results.csv')
+export_query_to_csv(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, 'MONTH_PUT_CALL_PARITY.csv')
