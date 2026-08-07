@@ -1,6 +1,8 @@
 -- SQLBook: Code
 SELECT * from ice_futures_data_month 
 -- SQLBook: Code
+SELECT * FROM hobson_rogers_calibrated_prices
+-- SQLBook: Code
 
 SELECT      count(*) 'check',
             contract_code,

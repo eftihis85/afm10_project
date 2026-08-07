@@ -1,9 +1,19 @@
+from dataclasses import dataclass
 import sqlite3
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from scipy.optimize import minimize
 from files import MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, FUTURES_PRICES
+
+
+# ==============================================================================
+# Dataframes
+# ==============================================================================
+
+df_options_all  : pd.DataFrame
+df_futures_all : pd.DataFrame
+
 
 # ==============================================================================
 # 1. HOBSON-ROGERS MATHEMATICAL & PRICING FUNCTIONS
@@ -16,7 +26,7 @@ def compute_offset(log_prices: np.ndarray, dt: float, l: float) -> float:
     
     n = len(log_prices)
     if n == 0:
-        raise ImportError('Non zero')
+        return 0.0
     
     # Exponential decay weights over past time steps
     weights = np.exp(-l * np.arange(n - 1, -1, -1) * dt)
@@ -47,8 +57,8 @@ def hobson_rogers_mc_price(
     epsilon: float, 
     gamma: float,
     option_type: str,
-    n_sims: int, 
-    n_steps: int 
+    n_sims: int = 3000, 
+    n_steps: int = 30 
 ) -> float:
     """
     Prices European Option under Hobson-Rogers risk-neutral dynamics via Monte Carlo.
@@ -171,19 +181,115 @@ def objective_function(
 
 
 
-def run_hobson_rogers_pipeline(
+
+
+
+# ==============================================================================
+# 4. DATA LOADING & EXTRACTION FROM SQL QUERIES
+# ==============================================================================
+ 
+
+
+
+def load_data_from_db(
     db_path: Path, 
     options_sql_path: Path, 
     futures_sql_path: Path,
-    output_table_name: str = "hobson_rogers_calibrated_prices"
-):
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    conn = sqlite3.connect(db_path)
+    
+    with open(options_sql_path, 'r', encoding='utf-8') as f:
+        options_query = f.read()
+        
+    with open(futures_sql_path, 'r', encoding='utf-8') as f:
+        futures_query = f.read()
+
+    df_options_all = pd.read_sql_query(options_query, conn)
+    df_futures_all = pd.read_sql_query(futures_query, conn)
+    conn.close()
+    
+    return df_options_all, df_futures_all
+    
+
+
+
+
+
+# ==============================================================================
+# 4. DATA LOADING & EXTRACTION FROM SQL QUERIES
+# ==============================================================================
+
+def filter_data(
+    df_options_all: pd.DataFrame,
+    df_futures_all: pd.DataFrame,
+    option_contract_code: str,
+    delivery_period: str = '2023-04',
+    valuation_date: str = '2023-03-20'
+) -> tuple[pd.DataFrame, np.ndarray]:
+
+    # Filter options for specific valuation snapshot
+    df_options = df_options_all[
+        (df_options_all['contract_code'] == option_contract_code) &
+        (df_options_all['contract_delivery_period'] == delivery_period) &
+        (df_options_all['ts_event'] == valuation_date)
+    ].copy()
+
+    # Calculate Time-to-Expiry (T in years)
+    df_options['ts_event'] = pd.to_datetime(df_options['ts_event'])
+    df_options['option_expiry_date'] = pd.to_datetime(df_options['option_expiry_date'])
+    df_options['time_to_expiry'] = (df_options['option_expiry_date'] - df_options['ts_event']).dt.days / 365.25
+
+    # Determine most liquid option price and type per row
+    def select_liquid_option(row):
+        p_vol = row.get('put_volume', 0)
+        c_vol = row.get('call_volume', 0)
+        if c_vol > p_vol:
+            return pd.Series({'market_price': row['call_price'], 'option_type': 'C'})
+        elif p_vol > c_vol:
+            return pd.Series({'market_price': row['put_price'], 'option_type': 'P'})
+        elif c_vol > 0:
+            return pd.Series({'market_price': row['call_price'], 'option_type': 'C'})
+        else:
+            return pd.Series({'market_price': np.nan, 'option_type': None})
+
+    liquid_info = df_options.apply(select_liquid_option, axis=1)
+    df_options['market_price'] = liquid_info['market_price']
+    df_options['option_type'] = liquid_info['option_type']
+    
+    # Drop rows without valid option prices
+    df_options = df_options.dropna(subset=['market_price', 'close_of_future', 'euro_short_term_rate']).copy()
+    df_options = df_options[df_options['market_price'] > 0].copy()
+
+    # Extract historical futures close path leading up to valuation date
+    df_futures_hist = df_futures_all[
+        (df_futures_all['contract_code'] == option_contract_code) &
+        (df_futures_all['contract_delivery_period'] == delivery_period) &
+        (df_futures_all['ts_event'] <= valuation_date)
+    ].sort_values('ts_event').copy()
+
+    # Convert rate percentage (e.g., 2.398%) to decimal (0.02398)
+    r_avg = df_options['euro_short_term_rate'].mean() / 100.0 if df_options['euro_short_term_rate'].mean() > 0.5 else df_options['euro_short_term_rate'].mean()
+
+    prices = df_futures_hist['close_of_future'].values
+    n_days = len(prices)
+    t_vec = np.linspace(0, n_days / 252.0, n_days)
+    
+    # Z_s = ln(e^{-r*s} * S_s)
+    log_prices_hist = np.log(np.exp(-r_avg * t_vec) * prices)
+
+    return df_options, log_prices_hist
+
+def run_hobson_rogers_calibration(
+    df_options_all: pd.DataFrame,
+    df_futures_all: pd.DataFrame,
+    )-> pd.DataFrame:
     """
     Executes data loading, calibration, and database export.
     """
     print("Loading data from SQLite queries...")
-    df_options, log_prices_hist = load_data_from_db(
-        db_path, options_sql_path, futures_sql_path,
-        contract_code='TFO', delivery_period='2023-04', valuation_date='2023-03-20'
+    df_options, log_prices_hist = filter_data(
+        df_options_all=df_options_all, df_futures_all=df_futures_all,
+        option_contract_code='TFO', delivery_period='2023-04', valuation_date='2023-03-20'
     )
     
     print(f"Loaded {len(df_options)} valid market option quotes across strikes.")
@@ -228,22 +334,36 @@ def run_hobson_rogers_pipeline(
             S0=r['close_of_future'], K=r['option_strike_price'], 
             r=r['euro_short_term_rate'] / 100.0 if r['euro_short_term_rate'] > 0.5 else r['euro_short_term_rate'],
             T=r['time_to_expiry'], D0=opt_D0,
-            lmbda=opt_lambda, eta=opt_eta, epsilon=opt_epsilon, gamma=opt_gamma,
+            l=opt_lambda, eta=opt_eta, epsilon=opt_epsilon, gamma=opt_gamma,
             option_type=r['option_type']
         ),
         axis=1
     )
 
-    # Export calibrated results back to SQLite database
-    conn = sqlite3.connect(db_path)
-    df_options.to_sql(output_table_name, conn, if_exists='replace', index=False)
-    conn.close()
-    print(f"Results successfully saved to SQLite table '{output_table_name}'.")
+    return df_options
+
 
 
 if __name__ == "__main__":
     
     if MAIN_DB_FILE_PATH.exists() and MONTH_PUT_CALL_PARITY.exists() and FUTURES_PRICES.exists():
-        run_hobson_rogers_pipeline(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, FUTURES_PRICES)
+         
+        df_options_all, df_futures_all = load_data_from_db(  db_path= MAIN_DB_FILE_PATH, 
+                            options_sql_path= MONTH_PUT_CALL_PARITY, 
+                            futures_sql_path= FUTURES_PRICES
+                            )
+        
+        df_options= run_hobson_rogers_calibration(  
+                                                    df_options_all=df_options_all,
+                                                    df_futures_all= df_futures_all,)
+    
+        output_table_name: str = "hobson_rogers_calibrated_prices"
+    
+        # Export calibrated results back to SQLite database
+        conn = sqlite3.connect(MAIN_DB_FILE_PATH)
+        df_options.to_sql(output_table_name, conn, if_exists='replace', index=False)
+        conn.close()
+        print(f"Results successfully saved to SQLite table '{output_table_name}'.")
+
     else:
         raise FileNotFoundError('File path not found')
