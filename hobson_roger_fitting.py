@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from scipy.optimize import minimize
+from files import MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, FUTURES_PRICES
 
 # ==============================================================================
 # 1. HOBSON-ROGERS MATHEMATICAL & PRICING FUNCTIONS
@@ -169,32 +170,35 @@ def objective_function(
     return total_sse
 
 
-def run_calibration(
+
+def run_hobson_rogers_pipeline(
     db_path: Path, 
-    sql_file_path: Path,
-    output_table_name: str = "hobson_rogers_calibrated_results"
+    options_sql_path: Path, 
+    futures_sql_path: Path,
+    output_table_name: str = "hobson_rogers_calibrated_prices"
 ):
     """
-    Executes complete project calibration workflow.
+    Executes data loading, calibration, and database export.
     """
-    print(f"Reading SQL query from {sql_file_path}...")
-    with open(sql_file_path, 'r', encoding='utf-8') as f:
-        sql_query = f.read()
+    print("Loading data from SQLite queries...")
+    df_options, log_prices_hist = load_data_from_db(
+        db_path, options_sql_path, futures_sql_path,
+        contract_code='TFO', delivery_period='2023-04', valuation_date='2023-03-20'
+    )
+    
+    print(f"Loaded {len(df_options)} valid market option quotes across strikes.")
+    print(f"Historical futures price sequence length: {len(log_prices_hist)} days.")
 
-    print("Loading option & futures market data...")
-    df_options, log_prices_hist = load_afm10_data(db_path, sql_query)
-    print(f"Loaded {len(df_options)} valid option contracts for calibration.")
-
-    # Calibration parameters setup
+    # Optimization setup
     initial_guess = [2.0, 0.04, 0.01, -0.05]  # [lambda, eta, epsilon, gamma]
     bounds = [
         (0.01, 10.0),   # lambda > 0
         (0.001, 1.0),   # eta > 0
         (0.0001, 0.1),  # epsilon > 0
-        (-0.5, 0.5)     # gamma (equity skew)
+        (-0.5, 0.5)     # gamma (skew parameter)
     ]
 
-    print("\nStarting Nelder-Mead Optimization...")
+    print("\nStarting Nelder-Mead Hobson-Rogers Model Calibration...")
     res = minimize(
         objective_function,
         x0=initial_guess,
@@ -210,25 +214,27 @@ def run_calibration(
     print("\n==========================================")
     print("CALIBRATION SUCCESSFUL")
     print("==========================================")
-    print(f"Memory Decay Rate (λ) : {opt_lambda:.4f}")
-    print(f"Volatility Scale  (η) : {opt_eta:.4f}")
-    print(f"Volatility Floor  (ε) : {opt_epsilon:.4f}")
-    print(f"Skew Shift        (γ) : {opt_gamma:.4f}")
-    print(f"Current Offset   (D0) : {opt_D0:.4f}")
+    print(f"Optimal Lambda  (λ): {opt_lambda:.4f}")
+    print(f"Optimal Eta     (η): {opt_eta:.4f}")
+    print(f"Optimal Epsilon (ε): {opt_epsilon:.4f}")
+    print(f"Optimal Gamma   (γ): {opt_gamma:.4f}")
+    print(f"Initial Offset (D0): {opt_D0:.4f}")
     print("==========================================")
 
-    # Compute fitted model prices and write back to SQLite
-    print("\nGenerating model prices across surface...")
+    # Compute fitted model prices
+    print("\nComputing calibrated model prices...")
     df_options['hr_model_price'] = df_options.apply(
         lambda r: hobson_rogers_mc_price(
             S0=r['close_of_future'], K=r['option_strike_price'], 
-            r=r['euro_short_term_rate'], T=r['time_to_expiry'], D0=opt_D0,
-            l=opt_lambda, eta=opt_eta, epsilon=opt_epsilon, gamma=opt_gamma,
-            option_type='C' if r.get('call_volume', 0) >= r.get('put_volume', 0) else 'P'
+            r=r['euro_short_term_rate'] / 100.0 if r['euro_short_term_rate'] > 0.5 else r['euro_short_term_rate'],
+            T=r['time_to_expiry'], D0=opt_D0,
+            lmbda=opt_lambda, eta=opt_eta, epsilon=opt_epsilon, gamma=opt_gamma,
+            option_type=r['option_type']
         ),
         axis=1
     )
 
+    # Export calibrated results back to SQLite database
     conn = sqlite3.connect(db_path)
     df_options.to_sql(output_table_name, conn, if_exists='replace', index=False)
     conn.close()
@@ -236,11 +242,8 @@ def run_calibration(
 
 
 if __name__ == "__main__":
-    DB_PATH = Path("afm10_database.db")
-    SQL_PATH = Path("monthly_put_call_pivot.sql.txt")
     
-    # Execute if database file exists
-    if DB_PATH.exists() and SQL_PATH.exists():
-        run_calibration(DB_PATH, SQL_PATH)
+    if MAIN_DB_FILE_PATH.exists() and MONTH_PUT_CALL_PARITY.exists() and FUTURES_PRICES.exists():
+        run_hobson_rogers_pipeline(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, FUTURES_PRICES)
     else:
-        print("Please ensure 'afm10_database.db' and 'monthly_put_call_pivot.sql.txt' are in the workspace.")
+        raise FileNotFoundError('File path not found')
