@@ -7,13 +7,6 @@ from scipy.optimize import minimize
 from files import MAIN_DB_FILE_PATH, MONTH_PUT_CALL_PARITY, FUTURES_PRICES
 
 
-# ==============================================================================
-# Dataframes
-# ==============================================================================
-
-df_options_all  : pd.DataFrame
-df_futures_all : pd.DataFrame
-
 
 # ==============================================================================
 # 1. HOBSON-ROGERS MATHEMATICAL & PRICING FUNCTIONS
@@ -28,8 +21,8 @@ def compute_offset(log_prices: np.ndarray, dt: float, l: float) -> float:
     if n == 0:
         return 0.0
     
-    # Exponential decay weights over past time steps
-    weights = np.exp(-l * np.arange(n - 1, -1, -1) * dt)
+    # decay weights 
+    weights: list[float] = np.exp(-l * np.arange(n - 1, -1, -1) * dt)
     weights = weights / np.sum(weights)
     
     ewma_z:float = np.sum(weights * log_prices)
@@ -86,47 +79,6 @@ def hobson_rogers_mc_price(
     return float(np.exp(-r * T) * np.mean(payoff))
 
 
-# ==============================================================================
-# 2. AFM10 DATA EXTRACTION & PREPARATION
-# ==============================================================================
-
-def load_afm10_data(db_path: Path, sql_query: str) -> tuple[pd.DataFrame, np.ndarray]:
-    """
-    Extracts options dataset and constructs historical discounted log-prices Z_s.
-    """
-    conn = sqlite3.connect(db_path)
-    
-    # 1. Load options data from SQLite
-    df_options = pd.read_sql_query(sql_query, conn)
-    
-    # Clean and filter valid rows
-    df_options = df_options.dropna(subset=['close_of_future', 'option_strike_price', 'euro_short_term_rate']).copy()
-    
-    # Calculate time to expiry T (years) if expiry date is available
-    if 'option_expiry_date' in df_options.columns and 'ts_event' in df_options.columns:
-        df_options['ts_event'] = pd.to_datetime(df_options['ts_event'])
-        df_options['option_expiry_date'] = pd.to_datetime(df_options['option_expiry_date'])
-        df_options['time_to_expiry'] = (df_options['option_expiry_date'] - df_options['ts_event']).dt.days / 365.25
-    
-    df_options = df_options[df_options['time_to_expiry'] > 0.01].copy()
-
-    # 2. Construct historical discounted log-prices vector Z_s for underlying futures
-    # Extract historical close series ordered by event timestamp
-    hist_futures = df_options[['ts_event', 'close_of_future', 'euro_short_term_rate']].drop_duplicates()
-    hist_futures = hist_futures.sort_values('ts_event')
-    
-    r_avg = hist_futures['euro_short_term_rate'].mean()
-    if pd.isna(r_avg):
-        r_avg = 0.03
-        
-    prices = hist_futures['close_of_future'].values
-    t_steps = np.linspace(0, len(prices) / 252.0, len(prices))
-    
-    # Z_s = ln(e^{-r*s} * S_s)
-    log_prices_hist = np.log(np.exp(-r_avg * t_steps) * prices)
-    
-    conn.close()
-    return df_options, log_prices_hist
 
 
 # ==============================================================================
@@ -222,9 +174,10 @@ def load_data_from_db(
 def filter_data(
     df_options_all: pd.DataFrame,
     df_futures_all: pd.DataFrame,
+    futures_contract_code: str,
     option_contract_code: str,
-    delivery_period: str = '2023-04',
-    valuation_date: str = '2023-03-20'
+    delivery_period: str,
+    valuation_date: str,
 ) -> tuple[pd.DataFrame, np.ndarray]:
 
     # Filter options for specific valuation snapshot
@@ -262,9 +215,9 @@ def filter_data(
 
     # Extract historical futures close path leading up to valuation date
     df_futures_hist = df_futures_all[
-        (df_futures_all['contract_code'] == option_contract_code) &
+        (df_futures_all['contract_code'] == futures_contract_code) &
         (df_futures_all['contract_delivery_period'] == delivery_period) &
-        (df_futures_all['ts_event'] <= valuation_date)
+        (df_futures_all['ts_event'] < valuation_date)
     ].sort_values('ts_event').copy()
 
     # Convert rate percentage (e.g., 2.398%) to decimal (0.02398)
@@ -288,7 +241,7 @@ def run_hobson_rogers_calibration(
     """
     print("Loading data from SQLite queries...")
     df_options, log_prices_hist = filter_data(
-        df_options_all=df_options_all, df_futures_all=df_futures_all,
+        df_options_all=df_options_all, df_futures_all=df_futures_all, futures_contract_code='TFM',
         option_contract_code='TFO', delivery_period='2023-04', valuation_date='2023-03-20'
     )
     
