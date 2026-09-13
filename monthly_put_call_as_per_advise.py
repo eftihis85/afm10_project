@@ -41,7 +41,7 @@ def derive_implied_volatility_bs(price: float, S: float, K: float, r: float, T: 
 # ==============================================================================
 def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
                           sigma0: float, epsilon: float, lmbda: float,
-                          n_sims: int = 10_000, n_steps: int = 1_000, C: float = .01):
+                          n_sims: int = 10_000, n_steps: int = 1_00, C: int = 2):
     
     dt = T / n_steps
     sqrt_dt = np.sqrt(dt)
@@ -61,7 +61,8 @@ def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T
         
         
         vol_Y = sigma0 * np.sqrt(1.0 + epsilon * (Y**2))
-        vol_Y = np.maximum(vol_Y, C)
+        vol_Y = np.minimum(vol_Y, C)
+
         
         # Coupled update with single Brownian driver
         S += r * S * dt + vol_Y * S * dw
@@ -223,7 +224,7 @@ def run_simulation_market_data(
     if len(selected_df) == 0:
         raise Exception('no data')
     
-    selected_df['T'] = (pd.to_datetime(selected_df['option_expiry_date']) - pd.to_datetime(selected_df['ts_event'])).dt.days / 252
+    selected_df['T'] = (pd.to_datetime(selected_df['option_expiry_date']) - pd.to_datetime(selected_df['ts_event'])).dt.days / 365
     selected_df = selected_df[selected_df['T'] > 0.02]  # Filter out expiring options
     
     # Filter the first delivery period in calendar order 
@@ -274,7 +275,13 @@ def run_simulation_market_data(
 
     # Optimizing HR param
     init_guess = [sigma_hist, 0.5, 1.5]
-    bounds = [(0.05, 1.0), (0.01, 5.0), (0.1, 10.0)]
+    # bounds = [(0.05, 1.0), (0.01, 5.0), (0.1, 10.0)]
+    bounds = [
+    (0.01, 4.0),   # sigma0: allows baseline vol up to 400%
+    (0.001, 10.0), # epsilon: offset sensitivity
+    (0.05, 15.0)   # lambda: memory decay rate
+]
+    
     # res = minimize(calibration_loss, init_guess, method='L-BFGS-B', bounds=bounds)
     res = minimize(calibration_loss, init_guess, method='Nelder-Mead', bounds=bounds, options={'maxiter': 200, 'xatol': 1e-3, 'fatol': 1e-3})
 
@@ -317,6 +324,7 @@ def run_simulation_market_data(
     plt.plot(selected_df['option_strike_price'], selected_df['market_iv'], 'ko', label='Market Implied Vol')
     plt.plot(selected_df['option_strike_price'], selected_df['hr_iv_fit'], 'b-', label='Calibrated HR Model')
     # plt.axhline(sigma_hist, color='r', linestyle='--', label=f'Annualized sample standard deviation of daily log-returns Vol ({sigma_hist:.2%})')
+    plt.axvline(x=S0, color='grey', linestyle='--', linewidth=1.5, label=f'ATM Strike ({S0:.1f})')
     plt.title(f'Market vs Hobson-Rogers vs Black-Scholes (T = {target_T:.2f}y)')
     plt.xlabel('Strike Price (K)')
     plt.ylabel('Implied Volatility')
@@ -328,6 +336,7 @@ def run_simulation_market_data(
     return selected_df
 
 if __name__ == '__main__':
+    np.random.seed(0)
     # run_simulation_study()
         
-    run_simulation_market_data(nsmallest_delivery=2, selected_ts_event='2026-04-16')
+    run_simulation_market_data(nsmallest_delivery=1, selected_ts_event='2026-04-20')

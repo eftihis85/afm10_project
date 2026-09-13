@@ -54,4 +54,4 @@ def export_query_to_csv(db_path:Path, sql_file_path:Path, csv_file_name:str):
 
 
 # --- Example Usage ---
-export_query_to_csv(MAIN_DB_FILE_PATH, FUTURES_PRICES, 'FUTURES_PRICES.csv')
+export_query_to_csv(MAIN_DB_FILE_PATH, MONTH_PUT_CALL_IV_RESULTS, 'MONTH_PUT_CALL_IV_RESULTS.csv')
