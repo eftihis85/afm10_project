@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import math
 import sqlite3
 import numpy as np
@@ -162,12 +162,15 @@ def coontineus_EWMA(log_prices: np.ndarray, dt_series: np.ndarray, lmbda: float)
 # ==============================================================================
 
 def run_simulation_market_data(
+    contract_delivery_period: str, 
     selected_ts_event: str | None = None,
-    nsmallest_delivery: int = 1):
+    ):
     
-    if nsmallest_delivery < 1:
-        raise Exception('incorrect nsmallest_delivery')
-    
+    try:
+        # %Y matches a 4-digit year, %m matches a 2-digit month
+        datetime.strptime(contract_delivery_period, "%Y-%m")
+    except ValueError:
+        raise Exception('Invalide delivery period')
     
     conn = sqlite3.connect(MAIN_DB_FILE_PATH)
 
@@ -268,8 +271,11 @@ def run_simulation_market_data(
     # Filter the first delivery period in calendar order 
     # target_T = selected_df['T'].iloc[0]
     # target_T = min(selected_df['T'])
-    target_T = selected_df['T'].drop_duplicates().nsmallest(nsmallest_delivery).iloc[-1]
-    selected_df = selected_df[np.isclose(selected_df['T'], target_T, atol=0.01)].copy()
+    # target_T = selected_df['T'].drop_duplicates().nsmallest(nsmallest_delivery).iloc[-1]
+    # selected_df = selected_df[np.isclose(selected_df['T'], target_T, atol=0.01)].copy()
+
+    selected_df = selected_df[selected_df['contract_delivery_period'] == contract_delivery_period].copy()
+    target_T = selected_df['T'].iloc[0]
 
     #  Liquidity selection, the one with the highest volume 
     selected_df['target_price'] = np.where( selected_df['call_volume'] >= selected_df['put_volume'],
@@ -315,7 +321,7 @@ def run_simulation_market_data(
 
     def calibration_loss(params):
         sigma0, eps, lmbda, gamma = params
-        np.random.seed(42)  # Deterministic seed across solver iterations
+        np.random.seed(0)  # Deterministic seed across solver iterations
         
         y0 = coontineus_EWMA(log_prices_hist, dt_series, lmbda)
         c_mc, p_mc = hobson_rogers_mc_grid(
@@ -403,7 +409,7 @@ def run_simulation_market_data(
     plt.plot(selected_df['option_strike_price'], selected_df['hr_iv_fit'], 'b-', label='Calibrated HR Model')
     # plt.axhline(sigma_hist, color='r', linestyle='--', label=f'Annualized sample standard deviation of daily log-returns Vol ({sigma_hist:.2%})')
     plt.axvline(x=S0, color='grey', linestyle='--', linewidth=1.5, label=f'ATM Strike ({S0:.1f})')
-    plt.title(f'Market vs Hobson-Rogers vs Black-Scholes (T = {target_T:.2f}y)')
+    plt.title(f'Market vs HR vs BS, Date: {selected_ts_event} Del. Period: {contract_delivery_period}')
     plt.xlabel('Strike Price (K)')
     plt.ylabel('Implied Volatility')
     plt.grid(True, linestyle=':')
@@ -416,5 +422,16 @@ def run_simulation_market_data(
 if __name__ == '__main__':
     np.random.seed(0)
     # run_simulation_study()
-        
-    run_simulation_market_data(nsmallest_delivery=1, selected_ts_event='2026-05-20')
+    try:
+        # run_simulation_market_data(contract_delivery_period='2026-05', selected_ts_event='2026-04-20')
+        run_simulation_market_data(contract_delivery_period='2026-06', selected_ts_event='2026-05-20')
+        # run_simulation_market_data(contract_delivery_period='2026-04', selected_ts_event='2026-03-06')
+    except Exception as e:
+        if e.args[0] == 'no data':
+            print('')
+            print('')
+            print('')
+            print('NO DATA')
+            print('')
+            print('')
+            print('')

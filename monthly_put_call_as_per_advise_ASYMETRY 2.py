@@ -103,7 +103,7 @@ def calculate_iv(market_price, S, K, r, T, option_type):
 #     return call_prices, put_prices
 
 def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
-                          sigma0: float, epsilon: float, lmbda: float, gamma: float = 0.0,
+                          sigma0: float, epsilon: float, lmbda: float, gamma: float,
                           n_sims: int = 10_000, n_steps: int = 60, C: float = 5.0):
     dt = T / n_steps
     sqrt_dt = np.sqrt(dt)
@@ -346,7 +346,7 @@ def run_simulation_market_data(
         y0 = coontineus_EWMA(log_prices_hist, dt_series, lmbda)
         c_mc, p_mc = hobson_rogers_mc_grid(
             S0, y0, strikes, r, target_T, sigma0, eps, lmbda, gamma,
-            n_sims=4000, n_steps=30, C=4.0
+            n_sims=4000, n_steps=30, C=5.0
         )
         model_prices = np.where(types == 'C', c_mc, p_mc)
         
@@ -394,7 +394,7 @@ def run_simulation_market_data(
 
     # Evaluate Final Calibrated HR Prices
     opt_y0 = coontineus_EWMA(log_prices_hist, dt_series, opt_lmbda)
-    hr_c_fit, hr_p_fit = hobson_rogers_mc_grid(S0, opt_y0, strikes, r, target_T, opt_sigma0, opt_eps, opt_lmbda, n_sims=20000)
+    hr_c_fit, hr_p_fit = hobson_rogers_mc_grid(S0, opt_y0, strikes, r, target_T, opt_sigma0, opt_eps, opt_lmbda, gamma=opt_gamma, n_sims=20000)
     selected_df['hr_price_fit'] = np.where(types == 'C', hr_c_fit, hr_p_fit)
 
     # Fit comparson (target price mse )

@@ -41,7 +41,7 @@ def derive_implied_volatility_bs(price: float, S: float, K: float, r: float, T: 
 # ==============================================================================
 def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
                           sigma0: float, epsilon: float, lmbda: float,
-                          n_sims: int = 10_000, n_steps: int = 1_00, C: int = 2):
+                          n_sims: int = 10_000, n_steps: int = 1_00, C: int = 5):
     
     dt = T / n_steps
     sqrt_dt = np.sqrt(dt)
@@ -282,11 +282,14 @@ def run_simulation_market_data(
     (0.05, 15.0)   # lambda: memory decay rate
 ]
     
-    # res = minimize(calibration_loss, init_guess, method='L-BFGS-B', bounds=bounds)
-    res = minimize(calibration_loss, init_guess, method='Nelder-Mead', bounds=bounds, options={'maxiter': 200, 'xatol': 1e-3, 'fatol': 1e-3})
+    res = minimize(calibration_loss, init_guess, method='L-BFGS-B', bounds=bounds)
+    # res = minimize(calibration_loss, init_guess, method='Nelder-Mead', bounds=bounds, options={'maxiter': 200, 'xatol': 1e-3, 'fatol': 1e-3})
 
     opt_sigma0, opt_eps, opt_lmbda = res.x
-    print(f'Calibrated Parameters: sigma0 = {opt_sigma0:.4f}, epsilon = {opt_eps:.4f}, lamda = {opt_lmbda:.4f}')
+    print(f'Calibrated Parameters: '
+          f'\nsigma0 = {opt_sigma0:.4f}'
+          f'\nepsilon = {opt_eps:.4f}'
+          f'\nlamda = {opt_lmbda:.4f}')
 
     # Evaluate Final Calibrated HR Prices
     opt_y0 = coontineus_EWMA(log_prices_hist, dt_series, opt_lmbda)
