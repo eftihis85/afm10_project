@@ -36,45 +36,14 @@ def derive_implied_volatility_bs(price: float, S: float, K: float, r: float, T: 
     except (ValueError, RuntimeError):
         return np.nan
 
-# ==============================================================================
-# 2. Hobson-Rogers Monte Carlo Engine
-# ==============================================================================
-# def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
-#                           sigma0: float, epsilon: float, lmbda: float,
-#                           n_sims: int = 10_000, n_steps: int = 1_00, C: int = 2):
-    
-#     dt = T / n_steps
-#     sqrt_dt = np.sqrt(dt)
-
-#     # Antithetic variates for variance reduction
-#     half_sims = math.floor (n_sims / 2)
-#     dW_half = np.random.normal(0.0, sqrt_dt, size=(n_steps, half_sims))
-#     dW = np.hstack([dW_half, -dW_half])
-
-#     S = np.full(n_sims, S0, dtype=np.float64)
-#     Y = np.full(n_sims, y0, dtype=np.float64)
-
-#     for step in range(n_steps):
-#         dw = dW[step]
-        
-#         # $\sigma(y) = \sigma_0 \sqrt{1 + \varepsilon y^2} \wedge C$
-        
-        
-#         vol_Y = sigma0 * np.sqrt(1.0 + epsilon * (Y**2))
-#         vol_Y = np.minimum(vol_Y, C)
-
-        
-#         # Coupled update with single Brownian driver
-#         S += r * S * dt + vol_Y * S * dw
-#         Y += -(0.5 * (vol_Y**2) + lmbda * Y) * dt + vol_Y * dw
-
-#     call_prices = np.array([np.exp(-r * T) * np.mean(np.maximum(S - k, 0.0)) for k in strikes])
-#     put_prices = np.array([np.exp(-r * T) * np.mean(np.maximum(k - S, 0.0)) for k in strikes])
-#     return call_prices, put_prices
 
 def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
-                          sigma0: float, epsilon: float, lmbda: float, gamma: float = 0.0,
-                          n_sims: int = 10_000, n_steps: int = 60, C: float = 5.0):
+                          sigma0: float, epsilon: float, lmbda: float, gamma: float):
+    
+    n_sims: int = 20_000
+    n_steps: int = 60
+    C: float = 5.0
+    
     dt = T / n_steps
     sqrt_dt = np.sqrt(dt)
 
@@ -117,10 +86,11 @@ def run_theoretical_simulation():
     sigma0 = 0.20
     eps = 0.8
     lmbda = 2.0
+    gamma = 0.5
     strikes = np.linspace(start=75.0,stop= 125.0,num= 21)
 
     # (ii) HR Monte Carlo Prices
-    hr_calls, hr_puts = hobson_rogers_mc_grid(S0, y0, strikes, r, T, sigma0, eps, lmbda)
+    hr_calls, hr_puts = hobson_rogers_mc_grid(S0, y0, strikes, r, T, sigma0, eps, lmbda, gamma=gamma)
 
     # (iii) Implied Volatilities for HR Call prices
     hr_ivs = [derive_implied_volatility_bs(p, S0, k, r, T, 'C') for p, k in zip(hr_calls, strikes)]
@@ -325,8 +295,7 @@ def run_simulation_market_data(
         
         y0 = coontineus_EWMA(log_prices_hist, dt_series, lmbda)
         c_mc, p_mc = hobson_rogers_mc_grid(
-            S0, y0, strikes, r, target_T, sigma0, eps, lmbda, gamma,
-            n_sims=4000, n_steps=30, C=4.0
+            S0=S0, y0=y0, strikes=strikes, r=r, T=target_T, sigma0=sigma0, epsilon=eps, lmbda=lmbda, gamma=gamma,
         )
         model_prices = np.where(types == 'C', c_mc, p_mc)
         
@@ -362,7 +331,7 @@ def run_simulation_market_data(
         (0.10, 2.5),    # sigma0
         (0.001, 10.0),  # epsilon
         (0.10, 10.0),   # lambda
-        (-2.0, 2.0)     # gamma (allows positive or negative skew)
+        (-5.0, 5.0)     # gamma (allows positive or negative skew)
     ] 
     
     print("Calibrating Asymmetric Hobson-Rogers parameters...")
@@ -374,7 +343,7 @@ def run_simulation_market_data(
 
     # Evaluate Final Calibrated HR Prices
     opt_y0 = coontineus_EWMA(log_prices_hist, dt_series, opt_lmbda)
-    hr_c_fit, hr_p_fit = hobson_rogers_mc_grid(S0, opt_y0, strikes, r, target_T, opt_sigma0, opt_eps, opt_lmbda, n_sims=20000)
+    hr_c_fit, hr_p_fit = hobson_rogers_mc_grid(S0=S0, y0=opt_y0, strikes=strikes, r=r, T=target_T, sigma0=opt_sigma0, epsilon=opt_eps, lmbda=opt_lmbda, gamma=opt_gamma)
     selected_df['hr_price_fit'] = np.where(types == 'C', hr_c_fit, hr_p_fit)
 
     # Fit comparson (target price mse )
@@ -423,8 +392,8 @@ if __name__ == '__main__':
     np.random.seed(0)
     # run_simulation_study()
     try:
-        # run_simulation_market_data(contract_delivery_period='2026-05', selected_ts_event='2026-04-20')
-        run_simulation_market_data(contract_delivery_period='2026-06', selected_ts_event='2026-05-20')
+        run_simulation_market_data(contract_delivery_period='2026-05', selected_ts_event='2026-04-20')
+        # run_simulation_market_data(contract_delivery_period='2026-06', selected_ts_event='2026-05-20')
         # run_simulation_market_data(contract_delivery_period='2026-04', selected_ts_event='2026-03-06')
     except Exception as e:
         if e.args[0] == 'no data':

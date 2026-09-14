@@ -66,42 +66,6 @@ def calculate_iv(market_price, S, K, r, T, option_type):
     except (ValueError, RuntimeError):
         return None
 
-# ==============================================================================
-# 2. Hobson-Rogers Monte Carlo Engine
-# ==============================================================================
-# def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
-#                           sigma0: float, epsilon: float, lmbda: float,
-#                           n_sims: int = 10_000, n_steps: int = 1_00, C: int = 2):
-    
-#     dt = T / n_steps
-#     sqrt_dt = np.sqrt(dt)
-
-#     # Antithetic variates for variance reduction
-#     half_sims = math.floor (n_sims / 2)
-#     dW_half = np.random.normal(0.0, sqrt_dt, size=(n_steps, half_sims))
-#     dW = np.hstack([dW_half, -dW_half])
-
-#     S = np.full(n_sims, S0, dtype=np.float64)
-#     Y = np.full(n_sims, y0, dtype=np.float64)
-
-#     for step in range(n_steps):
-#         dw = dW[step]
-        
-#         # $\sigma(y) = \sigma_0 \sqrt{1 + \varepsilon y^2} \wedge C$
-        
-        
-#         vol_Y = sigma0 * np.sqrt(1.0 + epsilon * (Y**2))
-#         vol_Y = np.minimum(vol_Y, C)
-
-        
-#         # Coupled update with single Brownian driver
-#         S += r * S * dt + vol_Y * S * dw
-#         Y += -(0.5 * (vol_Y**2) + lmbda * Y) * dt + vol_Y * dw
-
-#     call_prices = np.array([np.exp(-r * T) * np.mean(np.maximum(S - k, 0.0)) for k in strikes])
-#     put_prices = np.array([np.exp(-r * T) * np.mean(np.maximum(k - S, 0.0)) for k in strikes])
-#     return call_prices, put_prices
-
 def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T: float,
                           sigma0: float, epsilon: float, lmbda: float, gamma: float,
                           n_sims: int = 10_000, n_steps: int = 60, C: float = 5.0):
@@ -118,8 +82,8 @@ def hobson_rogers_mc_grid(S0: float, y0: float, strikes: np.ndarray, r: float, T
     for step in range(n_steps):
         dw = dW[step]
         
-        # Numerical safeguard against extreme drift
-        Y = np.clip(Y, -5.0, 5.0)
+        # # Numerical safeguard against extreme drift
+        # Y = np.clip(Y, -5.0, 5.0)
         
         # Asymmetric volatility specification: sigma0 * sqrt(1 + eps * (Y - gamma)^2) ^ C
         vol_Y = sigma0 * np.sqrt(1.0 + epsilon * ((Y - gamma)**2))
@@ -382,7 +346,7 @@ def run_simulation_market_data(
         (0.10, 2.5),    # sigma0
         (0.001, 10.0),  # epsilon
         (0.10, 10.0),   # lambda
-        (-2.0, 2.0)     # gamma (allows positive or negative skew)
+        (-5.0, 5.0)     # gamma (allows positive or negative skew)
     ] 
     
     print("Calibrating Asymmetric Hobson-Rogers parameters...")
@@ -443,4 +407,5 @@ if __name__ == '__main__':
     np.random.seed(0)
     # run_simulation_study()
         
-    run_simulation_market_data(nsmallest_delivery=1, selected_ts_event='2026-04-20')
+    # run_simulation_market_data(nsmallest_delivery=1, selected_ts_event='2026-04-20')
+    run_simulation_market_data(nsmallest_delivery=2, selected_ts_event='2026-05-20')
